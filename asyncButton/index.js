@@ -29,27 +29,7 @@
 class AsyncButton extends HTMLElement {
     constructor() {
         super();
-        this.attachShadow({ mode: 'open' });
         this.storedAttributes = {};
-
-        // Create and apply stylesheet
-        const stylesheet = new CSSStyleSheet();
-        stylesheet.replaceSync(`
-            .cta {
-                font-size: 1.4em;
-                color: var(--silver);
-                border-radius: var(--default-border-radius);
-            background-color: transparent;
-                cursor:pointer;
-                padding: var(--default-padding-inset);
-            }
-            .cta:hover {
-                color: var(--primary-light);
-                background-color: var(--silver-tint);
-            }
-            /* Add your styles here */
-        `);
-        this.shadowRoot.adoptedStyleSheets = [stylesheet];
     }
 
     connectedCallback() {
@@ -68,7 +48,7 @@ class AsyncButton extends HTMLElement {
     }
 
     disableButton() {
-        this.shadowRoot.querySelector('button').disabled = true;
+        this.querySelector('button').disabled = true;
     }
 
     validateForm() {
@@ -86,7 +66,7 @@ class AsyncButton extends HTMLElement {
             return; // Exit if the form is not valid
         }
 
-        const button = this.shadowRoot.querySelector('button');
+        const button = this.querySelector('button');
         const originalText = button.textContent;
         button.textContent = this.storedAttributes.loadingText;
 
@@ -129,20 +109,15 @@ class AsyncButton extends HTMLElement {
     }
 
     addEventListeners() {
-        this.shadowRoot.querySelector('button').addEventListener('click', () => this.handleClick());
+        this.querySelector('button').addEventListener('click', () => this.handleClick());
     }
 
     render() {
-        const template = document.createElement('template');
-        template.innerHTML = `
+        this.innerHTML = `
             <button class="${this.storedAttributes.buttonClass}">
                 <slot></slot>
             </button>
         `;
-
-        // Append content to shadow DOM
-        this.shadowRoot.innerHTML = '';
-        this.shadowRoot.appendChild(template.content.cloneNode(true));
     }
 
     removeAttributes() {
