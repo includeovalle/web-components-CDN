@@ -63,14 +63,17 @@ class CustomInput extends HTMLElement {
       this.inputElement.addEventListener('input', this.comparePasswords.bind(this));
     }
 
-    // Add event listener for form submission
-    this.inputElement.closest('form').addEventListener('submit', (event) => {
-      this.comparePasswords(); // Ensure custom validation is checked before submission
-      if (!this.inputElement.checkValidity()) {
-        this.inputElement.reportValidity();
-        event.preventDefault(); // Prevent form submission
-      }
-    });
+    // Dynamically access form and add event listener for form submission
+    const formElement = this.closest('form');
+    if (formElement) {
+      formElement.addEventListener('submit', (event) => {
+        this.comparePasswords(); // Ensure custom validation is checked before submission
+        if (!this.inputElement.checkValidity()) {
+          this.inputElement.reportValidity();
+          event.preventDefault(); // Prevent form submission
+        }
+      });
+    }
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
