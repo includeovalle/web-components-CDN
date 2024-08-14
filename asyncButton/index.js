@@ -1,4 +1,3 @@
-
 // ids
 // Type: string
 // Description: A comma-separated list of IDs of input elements.
@@ -25,6 +24,7 @@
 // Type: string (optional)
 // Description: Any custom CSS classes to apply to the button element within the component.
 // Example: <async-button class="primary-button"></async-button>
+
 
 
 
