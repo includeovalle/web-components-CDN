@@ -67,42 +67,46 @@ class ValidationComponent extends HTMLElement {
     this.render();
   }
 
-validateInput() {
-  if (!this.inputElement) {
-    return { isValid: false, missingParts: [] };
-  }
-
-  const value = this.inputElement.value;
-  const patterns = this.pattern.split(',').map(p => p.trim());
-  const missingParts = [];
-
-  for (const pattern of patterns) {
-    const match = pattern.match(/(.+)\{(\d+)\}/);
-    let regex;
-    let requiredCount = 1;
-
-    if (match) {
-      regex = new RegExp(match[1], 'g');
-      requiredCount = parseInt(match[2], 10);
-    } else {
-      regex = new RegExp(pattern, 'g');
+  validateInput() {
+    if (!this.inputElement) {
+      return { isValid: false, missingParts: [] };
     }
 
-    const matches = value.match(regex) || [];
-    const missingCount = requiredCount - matches.length;
+    const value = this.inputElement.value;
+    const patterns = this.pattern.split(',').map(p => p.trim());
+    const missingParts = [];
 
-    if (missingCount > 0) {
-      // Constructing the message to reflect missing parts more clearly
-      missingParts.push(`${missingCount} que sea ${pattern.replace(/\{.*\}/, '')}`);
+    for (const pattern of patterns) {
+      const match = pattern.match(/(.+)\{(\d+)\}/);
+      let regex;
+      let requiredCount = 1;
+
+      if (match) {
+        regex = new RegExp(match[1], 'g');
+        requiredCount = parseInt(match[2], 10);
+      } else {
+        regex = new RegExp(pattern, 'g');
+      }
+
+      const matches = value.match(regex) || [];
+      const missingCount = requiredCount - matches.length;
+
+      if (missingCount > 0) {
+        // Constructing the message to reflect missing parts more clearly
+        missingParts.push(`${missingCount} que sea ${pattern.replace(/\{.*\}/, '')}`);
+      }
     }
+
+    const isValid = missingParts.length === 0;
+
+    return { isValid, missingParts };
   }
-
-  const isValid = missingParts.length === 0;
-
-  return { isValid, missingParts };
-}
 
   render() {
+    if (!this.inputElement) {
+      return; // Exit the method if inputElement is undefined
+    }
+
     const { isValid, missingParts } = this.validateInput();
     let messageElement = this.shadowRoot.querySelector(this.type);
 
