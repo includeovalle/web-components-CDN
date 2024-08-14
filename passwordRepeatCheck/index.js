@@ -113,4 +113,4 @@ class CustomInput extends HTMLElement {
   }
 }
 
-customElements.define('custom-input', CustomInput);
+customElements.define('password-repeat-check', CustomInput);
