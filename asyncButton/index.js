@@ -94,17 +94,17 @@ class AsyncButton extends HTMLElement {
                 } else {
                     window.location.reload();
                 }
-            }, 1900); // 2-second delay
+            }, 1600); // 2-second delay
         } catch (error) {
             console.error('Error:', error);
             setTimeout(() => {
                 window.location.reload();
-            }, 1900); // 2-second delay
+            }, 1600); // 2-second delay
         } finally {
             setTimeout(() => {
                 button.textContent = originalText;
                 button.disabled = false;
-            }, 1900); // Restore button state after 2 seconds
+            }, 1600); // Restore button state after 2 seconds
         }
     }
 
