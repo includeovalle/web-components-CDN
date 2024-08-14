@@ -26,6 +26,8 @@
 // Description: Any custom CSS classes to apply to the button element within the component.
 // Example: <async-button class="primary-button"></async-button>
 
+
+
 class AsyncButton extends HTMLElement {
     constructor() {
         super();
@@ -34,9 +36,9 @@ class AsyncButton extends HTMLElement {
 
     connectedCallback() {
         this.storeAttributes();
-        this.removeAttributes();
         this.render();
         this.addEventListeners();
+        this.removeAttributes(); // Remove attributes after rendering
     }
 
     storeAttributes() {
@@ -44,7 +46,9 @@ class AsyncButton extends HTMLElement {
         this.storedAttributes.endpoint = this.getAttribute('endpoint');
         this.storedAttributes.href = this.getAttribute('href');
         this.storedAttributes.loadingText = this.getAttribute('loading') || 'loading';
+        this.storedAttributes.errorText = this.getAttribute('error') || 'something went wrong';
         this.storedAttributes.buttonClass = this.getAttribute('class') || '';
+        this.storedAttributes.innerText = this.textContent.trim(); // Store the initial button text
     }
 
     disableButton() {
@@ -57,27 +61,30 @@ class AsyncButton extends HTMLElement {
             if (element) {
                 return element.reportValidity();
             }
-            return true;
+            return false;
         });
     }
 
     async handleClick() {
-        if (!this.validateForm()) {
+        if (this.storedAttributes.ids.length > 0 && !this.validateForm()) {
             return; // Exit if the form is not valid
         }
 
         const button = this.querySelector('button');
-        const originalText = button.textContent;
         button.textContent = this.storedAttributes.loadingText;
 
         this.disableButton();
-        const formData = {};
-        this.storedAttributes.ids.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                formData[element.name] = element.value;
-            }
-        });
+
+        let formData = null;
+        if (this.storedAttributes.ids.length > 0) {
+            formData = {};
+            this.storedAttributes.ids.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    formData[element.name] = element.value;
+                }
+            });
+        }
 
         try {
             const response = await fetch(this.storedAttributes.endpoint, {
@@ -85,24 +92,21 @@ class AsyncButton extends HTMLElement {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(formData),
+                body: formData ? JSON.stringify(formData) : null,
             });
 
-            setTimeout(() => {
-                if (response.ok) {
+            if (response.ok) {
+                setTimeout(() => {
                     window.location.href = this.storedAttributes.href;
-                } else {
-                    window.location.reload();
-                }
-            }, 1600); // 2-second delay
+                }, 1600); // 2-second delay
+            } else {
+                button.textContent = this.storedAttributes.errorText;
+            }
         } catch (error) {
-            console.error('Error:', error);
-            setTimeout(() => {
-                window.location.reload();
-            }, 1600); // 2-second delay
+            button.textContent = this.storedAttributes.errorText;
         } finally {
             setTimeout(() => {
-                button.textContent = originalText;
+                button.textContent = this.storedAttributes.innerText; // Restore initial text
                 button.disabled = false;
             }, 1600); // Restore button state after 2 seconds
         }
@@ -115,7 +119,7 @@ class AsyncButton extends HTMLElement {
     render() {
         this.innerHTML = `
             <button class="${this.storedAttributes.buttonClass}">
-                <slot></slot>
+                ${this.storedAttributes.innerText}
             </button>
         `;
     }
@@ -126,6 +130,7 @@ class AsyncButton extends HTMLElement {
         this.removeAttribute('href');
         this.removeAttribute('loading');
         this.removeAttribute('class');
+        this.removeAttribute('error');
     }
 }
 
