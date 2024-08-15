@@ -9,15 +9,31 @@ class ValidationComponent extends HTMLElement {
 
     const stylesheet = new CSSStyleSheet();
     stylesheet.replaceSync(`
-      .message {
-        margin: 0;
-        color: mintcream;
+      @-webkit-keyframes fadeOut {
+        0% {opacity: 1;}
+        100% {opacity: 0;}
+      }
+      @keyframes fadeOut {
+        0% {opacity: 1;}
+        100% {opacity: 0;display: none;}
+      }
+      :host {
+        display: none; /* Initially hidden */
       }
       .hidden {
         display: none;
       }
       .display {
         display: block;
+      }
+      .matched {
+        text-decoration: line-through; /* Strikethrough for matched patterns */
+        animation-name: fadeOut;
+        animation-duration: 1s;
+        animation-fill-mode: both;
+      }
+      .unmatched {
+        color: deeppink; /* Optional: color for unmatched items */
       }
     `);
 
@@ -28,7 +44,6 @@ class ValidationComponent extends HTMLElement {
     this.inputElement = document.getElementById(this.checkId);
     if (this.inputElement) {
       this.inputElement.addEventListener('input', this.handleInput.bind(this));
-      this.render(); // Render immediately when connected
     }
   }
 
@@ -48,11 +63,10 @@ class ValidationComponent extends HTMLElement {
         this.inputElement.addEventListener('input', this.handleInput.bind(this));
       }
     }
-    this.render();
   }
 
   get type() {
-    return this.getAttribute('type') || 'span';
+    return this.getAttribute('type') || 'ul'; // Default type to 'ul'
   }
 
   get checkId() {
@@ -69,65 +83,59 @@ class ValidationComponent extends HTMLElement {
 
   validateInput() {
     if (!this.inputElement) {
-      return { isValid: false, missingParts: [] };
+      return [];
     }
 
     const value = this.inputElement.value;
     const patterns = this.pattern.split(',').map(p => p.trim());
-    const missingParts = [];
+    const results = [];
+
+    const patternDict = {
+      '[a-z]{2}': { message: 'de minuscula', regex: /[a-z]/g, requiredCount: 2 },
+      '[A-Z]{2}': { message: 'de mayuscula', regex: /[A-Z]/g, requiredCount: 2 },
+      '[0-9]{2}': { message: 'de numero', regex: /[0-9]/g, requiredCount: 2 },
+    };
 
     for (const pattern of patterns) {
-      const match = pattern.match(/(.+)\{(\d+)\}/);
-      let regex;
-      let requiredCount = 1;
-
-      if (match) {
-        regex = new RegExp(match[1], 'g');
-        requiredCount = parseInt(match[2], 10);
-      } else {
-        regex = new RegExp(pattern, 'g');
-      }
-
-      const matches = value.match(regex) || [];
-      const missingCount = requiredCount - matches.length;
-
-      if (missingCount > 0) {
-        // Constructing the message to reflect missing parts more clearly
-        missingParts.push(`${missingCount} que sea ${pattern.replace(/\{.*\}/, '')}`);
+      const { message, regex, requiredCount } = patternDict[pattern] || {};
+      if (message && regex) {
+        const matches = value.match(regex) || [];
+        const matchCount = matches.length;
+        const missingCount = Math.max(requiredCount - matchCount, 0);
+        results.push({ message, isMatched: missingCount === 0, missingCount });
       }
     }
 
-    const isValid = missingParts.length === 0;
-
-    return { isValid, missingParts };
+    return results;
   }
 
   render() {
     if (!this.inputElement) {
-      return; // Exit the method if inputElement is undefined
+      this.style.display = 'none';
+      return;
     }
 
-    const { isValid, missingParts } = this.validateInput();
-    let messageElement = this.shadowRoot.querySelector(this.type);
+    const results = this.validateInput();
+    let listElement = this.shadowRoot.querySelector(this.type);
 
-    if (!messageElement) {
-      messageElement = document.createElement(this.type);
-      this.shadowRoot.appendChild(messageElement);
+    if (!listElement) {
+      listElement = document.createElement(this.type);
+      this.shadowRoot.appendChild(listElement);
     }
 
-    messageElement.className = 'message';
+    // Clear previous content
+    listElement.innerHTML = '';
+
     if (this.inputElement.value.trim() === '') {
-      messageElement.classList.add('hidden');
-      messageElement.classList.remove('display');
+      this.style.display = 'none'; // Hide the component if input is empty
     } else {
-      if (isValid) {
-        messageElement.classList.add('hidden');
-        messageElement.classList.remove('display');
-      } else {
-        messageElement.textContent = `Falta: ${missingParts.join(', ')}`;
-        messageElement.classList.add('display');
-        messageElement.classList.remove('hidden');
-      }
+      this.style.display = 'block'; // Show the component
+      results.forEach(({ message, isMatched, missingCount }) => {
+        const listItem = document.createElement('li');
+        listItem.textContent = `Falta: ${missingCount} ${message}`;
+        listItem.className = isMatched ? 'matched' : 'unmatched';
+        listElement.appendChild(listItem);
+      });
     }
   }
 }
