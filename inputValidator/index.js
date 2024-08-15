@@ -15,7 +15,7 @@ class ValidationComponent extends HTMLElement {
       }
       @keyframes fadeOut {
         0% {opacity: 1;}
-        100% {opacity: 0;display: none;}
+        100% {opacity: 0; display: none;}
       }
       :host {
         display: none; /* Initially hidden */
@@ -126,10 +126,12 @@ class ValidationComponent extends HTMLElement {
     // Clear previous content
     listElement.innerHTML = '';
 
-    if (this.inputElement.value.trim() === '') {
-      this.style.display = 'none'; // Hide the component if input is empty
+    const allMatched = results.every(result => result.isMatched);
+
+    if (this.inputElement.value.trim() === '' || allMatched) {
+      this.style.display = 'none'; // Hide the component if input is empty or all patterns are matched
     } else {
-      this.style.display = 'block'; // Show the component
+      this.style.display = 'block'; // Show the component if there are unmet requirements
       results.forEach(({ message, isMatched, missingCount }) => {
         const listItem = document.createElement('li');
         listItem.textContent = `Falta: ${missingCount} ${message}`;
