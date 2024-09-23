@@ -1,4 +1,5 @@
 // async-tag-injector.js
+//<async-tag type="p" endpoint="/api/user" searchAttribute="user"> default value </async-tag>
 
 const templates = {
   span: document.createElement('template'),
@@ -24,6 +25,7 @@ class InjectorGenerator extends HTMLElement {
     const type = this.getAttribute('type') || 'span';
     const className = this.getAttribute('class') || '';
     const endpoint = this.getAttribute("endpoint");
+    const attribute = this.getAttribute("searchAttribute");
     const template = templates[type];
     const content = template.content.cloneNode(true);
     const element = content.firstChild;
@@ -47,12 +49,15 @@ class InjectorGenerator extends HTMLElement {
       this.removeAttribute('endpoint');
       this.removeAttribute('error');
       this.removeAttribute('type');
+      this.removeAttribute('searchattribute');
       if (!response.ok) {
         throw new Error('Network response was not ok');
       }
       const data = await response.json();
-      console.log('Fetched data:', data.user);
-      element.innerText = data.user; // Adjust 'user' to the correct property in your JSON
+      const query = await data[attribute]
+
+      element.innerText = query ? query : "default";
+
     } catch (error) {
       console.error('Fetch error:', error);
       // Do not overwrite initial content if fetch fails
