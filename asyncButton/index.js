@@ -25,6 +25,8 @@
 // Description: Any custom CSS classes to apply to the button element within the component.
 // Example: <async-button class="primary-button"></async-button>
 
+//Example of use:
+// <async-button class="cta" loading="Registrado, bienvenido" ids="password1,username1" error="No se pudo registrar"  endpoint="/register" href="/">Registrarme</async-button>
 
 
 
