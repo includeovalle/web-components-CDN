@@ -3,6 +3,7 @@
 // hideFromView: [item1,item2,item3]; array of strings which contains columns to hide
 // searchAttribute: "/data"; represents the attribute we are getting from endpoint
 // className: this isn't a shadow dom component so we can use userss custom className
+// editEndpoint: conditional string. if is set will apply modals logic
 
 class AsyncTable extends HTMLElement {
   constructor() {
@@ -43,11 +44,12 @@ class AsyncTable extends HTMLElement {
           <h3>Edit Row</h3>
           <div id="edit-fields"></div>
           <menu>
-            <button class="${className}" >Cancel</button>
+            <button class="${className}" id="cancel-btn">Cancel</button>
             <button class="${className}" id="save-btn" type="submit">Save</button>
           </menu>
         </form>
       </dialog>
+
     `;
 
     const tableClone = template.content.cloneNode(true);
@@ -130,6 +132,7 @@ class AsyncTable extends HTMLElement {
 
     // Save button listener
     saveBtn.addEventListener('click', () => {
+
       const rowIndex = dialog.getAttribute('data-row-index');
       this.saveRowChanges(parseInt(rowIndex));
       dialog.close();
@@ -142,9 +145,10 @@ class AsyncTable extends HTMLElement {
   }
 
   // Save the changes made in the dialog to the table
-  saveRowChanges(rowIndex) {
+  async saveRowChanges (rowIndex) {
     const dialog = this.querySelector('#edit-dialog');
     const inputs = dialog.querySelectorAll('input');
+        const endpoint = this.getAttribute('editEndpoint')
     
     // Update the current row's data with the new input values
     inputs.forEach(input => {
@@ -153,14 +157,21 @@ class AsyncTable extends HTMLElement {
 
     // Update the rows array with the modified data
     this.rows[rowIndex] = { ...this.currentRowData };
+        try {
+        const response = await fetch( endpoint, {method: 'POST', headers: {'Content-Type': 'application/json',},
+            body: JSON.stringify(this.currentRowData)
+            })
 
-    // Re-render the table with updated data
     const tbody = this.querySelector('tbody');
     this.renderRows(tbody, this.rows, this.hiddenColumns);
+            } catch {
+            alert("can't update")
+        }
   }
 
   sortTable(header) {
     // Toggle sort state
+    console.log('attention price sort is failing')
     this.sortState[header] = this.sortState[header] === 'asc' ? 'desc' : 'asc';
 
     // Sort data based on the current sort state
