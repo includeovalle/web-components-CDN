@@ -13,19 +13,24 @@ class AsyncTable extends HTMLElement {
   }
 
   async connectedCallback() {
-    const endpoint = this.getAttribute('endpoint');
-    const hideFromView = this.getAttribute('hideFromView');
-    const searchAttribute = this.getAttribute('searchAttribute');
-    const className = this.getAttribute('class') || '';
+    // Store the attribute values in storedComponents
+    this.storedComponents = {
+      className: this.getAttribute('class') || '',
+      endpoint: this.getAttribute('endpoint'),
+      hideFromView: this.getAttribute('hideFromView'),
+      searchAttribute: this.getAttribute('searchAttribute'),
+      editEndpoint: this.getAttribute('editEndpoint'),
+      deleteEndpoint: this.getAttribute('deleteEndpoint')
+    };
 
     // Fetch data from the endpoint
-    const response = await fetch(endpoint);
+    const response = await fetch(this.storedComponents.endpoint);
     const data = await response.json();
-    this.rows = data[searchAttribute] || [];
-    this.hiddenColumns = this.getHiddenColumns(hideFromView);
+    this.rows = data[this.storedComponents.searchAttribute] || [];
+    this.hiddenColumns = this.getHiddenColumns(this.storedComponents.hideFromView);
 
     // Render the table
-    this.renderTable({ className });
+    this.renderTable({ className: this.storedComponents.className });
   }
 
   renderTable({ className }) {
@@ -41,7 +46,10 @@ class AsyncTable extends HTMLElement {
       <!-- Dialog Modal for Editing Row -->
       <dialog id="edit-dialog">
         <form method="dialog">
-          <h3>Edit Row</h3>
+          <menu>
+            <h3>Edit Row</h3>
+            <button id="delete-btn" type="button">❌ DELETE ❌</button>
+          </menu>
           <div id="edit-fields"></div>
           <menu>
             <button class="${className}" id="cancel-btn">Cancel</button>
@@ -49,7 +57,6 @@ class AsyncTable extends HTMLElement {
           </menu>
         </form>
       </dialog>
-
     `;
 
     const tableClone = template.content.cloneNode(true);
@@ -129,10 +136,10 @@ class AsyncTable extends HTMLElement {
   setupDialogListeners() {
     const dialog = this.querySelector('#edit-dialog');
     const saveBtn = this.querySelector('#save-btn');
+    const deleteBtn = this.querySelector('#delete-btn');
 
     // Save button listener
     saveBtn.addEventListener('click', () => {
-
       const rowIndex = dialog.getAttribute('data-row-index');
       this.saveRowChanges(parseInt(rowIndex));
       dialog.close();
@@ -142,14 +149,21 @@ class AsyncTable extends HTMLElement {
     this.querySelector('#cancel-btn').addEventListener('click', () => {
       dialog.close();
     });
+
+    // Delete button listener
+    deleteBtn.addEventListener('click', () => {
+      const rowIndex = dialog.getAttribute('data-row-index');
+      this.deleteRow(parseInt(rowIndex));
+      dialog.close();
+    });
   }
 
   // Save the changes made in the dialog to the table
-  async saveRowChanges (rowIndex) {
+  async saveRowChanges(rowIndex) {
     const dialog = this.querySelector('#edit-dialog');
     const inputs = dialog.querySelectorAll('input');
-        const endpoint = this.getAttribute('editEndpoint')
-    
+    const endpoint = this.storedComponents.editEndpoint;
+
     // Update the current row's data with the new input values
     inputs.forEach(input => {
       this.currentRowData[input.name] = input.value;
@@ -157,21 +171,52 @@ class AsyncTable extends HTMLElement {
 
     // Update the rows array with the modified data
     this.rows[rowIndex] = { ...this.currentRowData };
-        try {
-        const response = await fetch( endpoint, {method: 'POST', headers: {'Content-Type': 'application/json',},
-            body: JSON.stringify(this.currentRowData)
-            })
 
-    const tbody = this.querySelector('tbody');
-    this.renderRows(tbody, this.rows, this.hiddenColumns);
-            } catch {
-            alert("can't update")
-        }
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.currentRowData)
+      });
+
+      const tbody = this.querySelector('tbody');
+      this.renderRows(tbody, this.rows, this.hiddenColumns);
+    } catch {
+      alert("Can't update");
+    }
+  }
+
+  // Delete the selected row
+  async deleteRow(rowIndex) {
+    const deleteEndpoint = this?.storedComponents?.deleteEndpoint;
+    const username = this.currentRowData['usuario']; // Assuming 'usuario' is the username field
+    const id = this.currentRowData['id']; // Assuming 'id' is the item identifier
+
+        console.log({deleteEndpoint})
+    try {
+      const response = await fetch(deleteEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, username })
+      });
+
+      if (response.ok) {
+        // Remove the deleted row from the data
+        this.rows.splice(rowIndex, 1);
+
+        // Re-render the table with the updated data
+        const tbody = this.querySelector('tbody');
+        this.renderRows(tbody, this.rows, this.hiddenColumns);
+      } else {
+        alert("Failed to delete the row");
+      }
+    } catch {
+      alert("Can't delete");
+    }
   }
 
   sortTable(header) {
     // Toggle sort state
-    console.log('attention price sort is failing')
     this.sortState[header] = this.sortState[header] === 'asc' ? 'desc' : 'asc';
 
     // Sort data based on the current sort state
@@ -198,3 +243,4 @@ class AsyncTable extends HTMLElement {
 }
 
 customElements.define('async-table', AsyncTable);
+ustomElements.define('async-table', AsyncTable);
