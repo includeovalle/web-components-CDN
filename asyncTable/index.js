@@ -241,6 +241,4 @@ class AsyncTable extends HTMLElement {
     return hideFromView ? hideFromView.split(',').map(col => col.trim()) : [];
   }
 }
-
 customElements.define('async-table', AsyncTable);
-ustomElements.define('async-table', AsyncTable);
