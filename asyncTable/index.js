@@ -20,7 +20,10 @@ class AsyncTable extends HTMLElement {
       hideFromView: this.getAttribute('hideFromView'),
       searchAttribute: this.getAttribute('searchAttribute'),
       editEndpoint: this.getAttribute('editEndpoint'),
-      deleteEndpoint: this.getAttribute('deleteEndpoint')
+      deleteEndpoint: this.getAttribute('deleteEndpoint'),
+      deleteButtonText: this.getAttribute('deleteButtonText'),
+      editButtonText: this.getAttribute('editButtonText'),
+      cancelButtonText: this.getAttribute('cancelButtonText')
     };
 
     // Fetch data from the endpoint
@@ -30,10 +33,15 @@ class AsyncTable extends HTMLElement {
     this.hiddenColumns = this.getHiddenColumns(this.storedComponents.hideFromView);
 
     // Render the table
-    this.renderTable({ className: this.storedComponents.className });
+    this.renderTable({ 
+      className: this.storedComponents.className
+      , deleteButtonText: this.storedComponents.deleteButtonText
+      , editButtonText: this.storedComponents.editButtonText
+      , cancelButtonText: this.storedComponents.cancelButtonText
+    });
   }
 
-  renderTable({ className }) {
+  renderTable({ className, cancelButtonText, editButtonText, deleteButtonText }) {
     const template = document.createElement('template');
     template.innerHTML = `
       <table class="${className}">
@@ -46,14 +54,14 @@ class AsyncTable extends HTMLElement {
       <!-- Dialog Modal for Editing Row -->
       <dialog id="edit-dialog">
         <form method="dialog">
-          <menu>
-            <h3>Edit Row</h3>
-            <button id="delete-btn" type="button">❌ DELETE ❌</button>
-          </menu>
+            <h3>Editar producto:</h3>
           <div id="edit-fields"></div>
           <menu>
-            <button class="${className}" id="cancel-btn">Cancel</button>
-            <button class="${className}" id="save-btn" type="submit">Save</button>
+            <button id="cancel-btn">${cancelButtonText}</button>
+            <button id="save-btn" type="submit">${editButtonText}</button>
+          </menu>
+          <menu>
+            <button id="delete-btn" type="button">${deleteButtonText}</button>
           </menu>
         </form>
       </dialog>
