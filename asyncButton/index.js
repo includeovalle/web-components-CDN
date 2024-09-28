@@ -73,6 +73,7 @@ class AsyncButton extends HTMLElement {
         }
 
         const button = this.querySelector('button');
+        const fatherForm = button.closest('form')
         button.textContent = this.storedAttributes.loadingText;
 
         this.disableButton();
@@ -97,12 +98,15 @@ class AsyncButton extends HTMLElement {
                 body: formData ? JSON.stringify(formData) : null,
             });
 
-            if (response.ok) {
+            if (response.ok && this.storedAttributes.href) {
                 setTimeout(() => {
                     window.location.href = this.storedAttributes.href;
                 }, 1600); // 2-second delay
             } else {
+                setTimeout(() => {
                 button.textContent = this.storedAttributes.errorText;
+                fatherForm.reset()
+                }, 1600); // 2-second delay
             }
         } catch (error) {
             button.textContent = this.storedAttributes.errorText;
@@ -137,3 +141,5 @@ class AsyncButton extends HTMLElement {
 }
 
 customElements.define('async-button', AsyncButton);
+
+
