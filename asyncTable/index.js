@@ -33,7 +33,7 @@ class AsyncTable extends HTMLElement {
     this.hiddenColumns = this.getHiddenColumns(this.storedComponents.hideFromView);
 
     // Render the table
-    this.renderTable({ 
+    this.renderTable({
       className: this.storedComponents.className
       , deleteButtonText: this.storedComponents.deleteButtonText
       , editButtonText: this.storedComponents.editButtonText
@@ -80,7 +80,9 @@ class AsyncTable extends HTMLElement {
         th.textContent = header;
 
         // Add click event for sorting
+
         th.addEventListener('click', () => this.sortTable(header));
+
         headerRow.appendChild(th);
       }
     });
@@ -200,7 +202,7 @@ class AsyncTable extends HTMLElement {
     const username = this.currentRowData['usuario']; // Assuming 'usuario' is the username field
     const id = this.currentRowData['id']; // Assuming 'id' is the item identifier
 
-        console.log({deleteEndpoint})
+    console.log({ deleteEndpoint })
     try {
       const response = await fetch(deleteEndpoint, {
         method: 'POST',
@@ -233,10 +235,17 @@ class AsyncTable extends HTMLElement {
       const bValue = header === 'price' ? parseFloat(b[header]) : b[header];
 
       // Handle numeric vs string comparison
-      if (typeof aValue === 'number' && typeof bValue === 'number') {
-        return this.sortState[header] === 'asc' ? aValue - bValue : bValue - aValue;
+      // Handle numeric and string comparisons
+      if (!isNaN(parseFloat(aValue)) && !isNaN(parseFloat(bValue))) {
+        // Convert to numbers if possible (for strings like "12.34")
+        const numA = parseFloat(aValue);
+        const numB = parseFloat(bValue);
+        return this.sortState[header] === 'asc' ? numA - numB : numB - numA;
       } else {
-        return this.sortState[header] === 'asc' ? (aValue > bValue ? 1 : -1) : (aValue < bValue ? 1 : -1);
+        // Fallback to lexicographic comparison if values are not numbers
+        return this.sortState[header] === 'asc'
+          ? (aValue > bValue ? 1 : -1)
+          : (aValue < bValue ? 1 : -1);
       }
     });
 
