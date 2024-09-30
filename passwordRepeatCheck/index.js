@@ -1,65 +1,51 @@
+/*
+  *
+  <password-repeat-check compare="password1">
+    <small slot="error" class="error">Las contraseñas no coinciden</small>
+    <label slot="children">
+      Confirma tu contraseña:
+      <input type="password" placeholder="Repite tu contraseña" autocomplete="new-password" minlength="6"
+        pattern="(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,}" />
+    </label>
+  </password-repeat-check>
+  *
+  */
+
 class CustomInput extends HTMLElement {
   static get observedAttributes() {
-    return ['type', 'placeholder', 'class', 'id', 'required', 'autocomplete', 'autofocus', 'minlength', 'pattern', 'compare', 'name', 'errorText'];
+    return [
+      'compare'
+    ];
   }
 
   constructor() {
     super();
 
-    // Attach shadow DOM
-    this.attachShadow({ mode: 'open' });
+    // Initialize storedAttributes
+    this.storedAttributes = {};
 
-    // Create and apply stylesheet
-    const stylesheet = new CSSStyleSheet();
-    stylesheet.replaceSync(`
-      label.index--form {
-        display: flex;
-        flex-direction: column;
-        font-size: 1.2em;
-      }
-      input.index__form {
-        padding: var(--default-padding-inset);
-        border-radius: var(--default-border-radius);
-        border: unset;
-        color: var(--primary);
-      }
-      input.index__form:focus {
-        border-bottom: var(--primary-light) 2px groove;
-        outline: none; /* Remove default focus outline */
-      }
-      .error {
-        font-size: 0.9em;
-        color: deeppink;
-        display: none;
-      }
-    `);
-
-    // Create template
-    this.shadowRoot.adoptedStyleSheets = [stylesheet];
-    this.shadowRoot.innerHTML = `
-      <label class="">
-        <small class="error"></small>
-        <span></span>
-        <input />
-      </label>
+    // Create template with a slot
+    const template = document.createElement('template');
+    template.innerHTML = `
+        <slot class="error" name="error" ></slot>
+        <slot name="children"> </slot>
     `;
 
+    // Attach the template's content to the custom element
+    const templateContent = template.content.cloneNode(true);
+    this.appendChild(templateContent); // No shadow DOM
+
     // Store references to elements
-    this.labelElement = this.shadowRoot.querySelector('label');
-    this.inputElement = this.shadowRoot.querySelector('input');
-    this.labelTextElement = this.shadowRoot.querySelector('span');
-    this.errorElement = this.shadowRoot.querySelector('.error');
+    this.inputElement = this.querySelector('input');
+    this.errorElement = this.querySelector('.error');
   }
 
   connectedCallback() {
+    this.storeAttributes();
     this.applyAttributes();
 
-    if (this.textContent) {
-      this.labelTextElement.textContent = this.textContent.trim();
-    }
-
     // Add event listener to compare passwords if 'compare' attribute is present
-    if (this.hasAttribute('compare')) {
+    if (this.storedAttributes.compare) {
       this.inputElement.addEventListener('input', this.comparePasswords.bind(this));
     }
 
@@ -76,41 +62,43 @@ class CustomInput extends HTMLElement {
     }
   }
 
-  attributeChangedCallback(name, oldValue, newValue) {
-    this.applyAttributes();
-  }
-
-  applyAttributes() {
-    const attributes = CustomInput.observedAttributes;
-    attributes.forEach(attr => {
-      if (attr === 'compare') return; // skip 'compare' as it's not an input attribute
+  storeAttributes() {
+    // Store all observed attributes and their values in the storedAttributes object
+    CustomInput.observedAttributes.forEach(attr => {
       if (this.hasAttribute(attr)) {
-        if (attr === 'class') {
-          // Apply the class to both label and input elements
-          this.labelElement.className = this.getAttribute(attr);
-          this.inputElement.className = this.getAttribute(attr);
-        } else if (attr === 'errorText') {
-          // Set the error message text
-          this.errorElement.textContent = this.getAttribute(attr);
-        } else {
-          this.inputElement.setAttribute(attr, this.getAttribute(attr));
-        }
+        this.storedAttributes[attr] = this.getAttribute(attr);
       } else {
-        this.inputElement.removeAttribute(attr);
+        delete this.storedAttributes[attr]; // Remove from storedAttributes if not present
       }
     });
   }
 
+  applyAttributes() {
+    Object.keys(this.storedAttributes).forEach(attr => {
+      if (attr === 'compare') return; // Skip 'compare' as it's not an input attribute
+      this.inputElement.setAttribute(attr, this.storedAttributes[attr]);
+    });
+
+    // Apply the passed class to the label and input elements
+    if (this.hasAttribute('class')) {
+      const classes = this.getAttribute('class').split(' ');
+      classes.forEach(cls => {
+        this.querySelector('label').classList.add(cls);
+        this.inputElement.classList.add(cls);
+      });
+    }
+  }
+
   comparePasswords() {
-    const compareId = this.getAttribute('compare');
+    const compareId = this.storedAttributes.compare;
     const firstPasswordInput = document.querySelector(`#${compareId}`);
-    const errorMessage = this.getAttribute('errorText') || 'Passwords do not match.';
+    const errorMessage = this.storedAttributes.errorText || 'Passwords do not match.';
 
     if (firstPasswordInput && firstPasswordInput.value !== this.inputElement.value) {
-      this.errorElement.style.display = 'block';
+      this.errorElement.style.display = 'block'; // Show error message
       this.inputElement.setCustomValidity(errorMessage);
     } else {
-      this.errorElement.style.display = 'none';
+      this.errorElement.style.display = 'none'; // Hide error message
       this.inputElement.setCustomValidity(''); // Reset custom validity
     }
   }
