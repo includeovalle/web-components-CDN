@@ -1,49 +1,41 @@
-// async-tag-injector.js
-// <async-tag stateThis="true" type="span" endpoint="/api/user" searchAttribute="user"> default value </async-tag>
+      // <async-tag endpoint="/api/user" searchAttribute="user" stateThis="true">
+      //   <span slot="tag"> user name</span>
+      // </async-tag>
 
-
-const templates = {
-  span: document.createElement('template'),
-  h1: document.createElement('template'),
-  p: document.createElement('template'),
-  div: document.createElement('template'),
-  a: document.createElement('template'),
-};
-
-templates.span.innerHTML = `<span><slot></slot></span>`;
-templates.h1.innerHTML = `<h1><slot></slot></h1>`;
-templates.p.innerHTML = `<p><slot></slot></p>`;
-templates.div.innerHTML = `<div><slot></slot></div>`;
-templates.a.innerHTML = `<a><slot></slot></a>`;
+const template = document.createElement('template');
+template.innerHTML = `
+  <div class="loading" style="display: none;">Loading...</div> <!-- Loading indicator -->
+  <slot name="tag"></slot> <!-- Named slot for dynamic content -->
+`;
 
 class InjectorGenerator extends HTMLElement {
   constructor() {
     super();
+    // Attach the template content to the component
+    this.attachShadow({ mode: 'open' }).appendChild(template.content.cloneNode(true));
   }
 
   async connectedCallback() {
-    const type = this.getAttribute('type') || 'span';
-    const className = this.getAttribute('class') || '';
-    const endpoint = this.getAttribute("endpoint");
-    const attribute = this.getAttribute("searchAttribute");
-    const stateThis = this.getAttribute("stateThis");
+    const endpoint = this.getAttribute('endpoint');
+    const attribute = this.getAttribute('searchAttribute');
+    const stateThis = this.getAttribute('stateThis') === "true"; // Ensure it's a boolean
 
-    const template = templates[type];
-    const content = template.content.cloneNode(true);
-    const element = content.firstChild;
-    element.className = className;
+    // Find the slot with name="tag"
+    const slotElement = this.shadowRoot.querySelector('slot[name="tag"]');
+    
+    // Check for assigned element to the slot
+    const assignedElements = slotElement.assignedNodes();
+    const assignedElement = assignedElements.length > 0 ? assignedElements[0] : null;
 
-    // Preserve initial content
-    const initialContent = this.innerHTML.trim();
+    if (!assignedElement) {
+      console.error("No element assigned to the 'tag' slot.");
+      return;
+    }
 
-    // Clear the initial content
-    this.innerHTML = '';
-    this.appendChild(content);
+    // Preserve initial content in case fetch fails or is delayed
+    const initialContent = assignedElement.textContent.trim();
 
-    // Set initial content
-    element.innerText = initialContent;
-
-    // Global cache object and in-progress tracking
+    // Cache and fetch state initialization
     if (!window._asyncTagState) {
       window._asyncTagState = {}; // Initialize cache if not present
     }
@@ -51,24 +43,21 @@ class InjectorGenerator extends HTMLElement {
       window._asyncTagFetchInProgress = {}; // Track fetch requests
     }
 
-    // Create a Proxy for the cache and fetch-in-progress state
+    const loadingElement = this.shadowRoot.querySelector('.loading');
+    loadingElement.style.display = 'block'; // Show loading indicator
+
     const cacheProxy = new Proxy(window._asyncTagState, {
       get: async (target, prop) => {
         const decodedProp = decodeURIComponent(prop);
-        
+
         if (decodedProp in target) {
-          // console.log(`Using cached data for: ${decodedProp}`);
           return target[decodedProp]; // Return cached data if available
-        } 
-        
+        }
+
         if (window._asyncTagFetchInProgress[decodedProp]) {
-          // console.log(`Fetch already in progress for: ${decodedProp}. Waiting...`);
-          // Wait until the ongoing fetch is complete
           return window._asyncTagFetchInProgress[decodedProp];
         }
 
-        // console.log(`No cached data for: ${decodedProp}. Fetching from API...`);
-        
         // Fetch in progress, return a Promise for all awaiting calls
         window._asyncTagFetchInProgress[decodedProp] = fetch(decodedProp)
           .then(async (response) => {
@@ -77,18 +66,16 @@ class InjectorGenerator extends HTMLElement {
             }
             const data = await response.json();
             target[decodedProp] = data; // Cache the fetched data
-            // console.log(`Data cached for: ${decodedProp}`);
             return data;
           })
           .finally(() => {
             delete window._asyncTagFetchInProgress[decodedProp]; // Cleanup after fetch
           });
-          
+
         return window._asyncTagFetchInProgress[decodedProp];
       },
     });
 
-    // Fetch data or use cached state
     try {
       if (!endpoint) {
         console.error('No endpoint provided');
@@ -99,10 +86,8 @@ class InjectorGenerator extends HTMLElement {
       const encodedEndpoint = encodeURIComponent(endpoint); // Cache and fetch based on the encoded endpoint
       if (stateThis) {
         const data = await cacheProxy[encodedEndpoint]; // Fetch or use cached data
-        // console.log('Using Proxy with state management', data[attribute]);
         query = data ? data[attribute] : null;
       } else {
-        console.log('StateThis attribute not present. Fetching data from API...');
         const response = await fetch(endpoint);
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -111,20 +96,22 @@ class InjectorGenerator extends HTMLElement {
         query = data[attribute];
       }
 
-      // Clean up attributes
-      this.removeAttribute('endpoint');
-      this.removeAttribute('error');
-      this.removeAttribute('type');
-      this.removeAttribute('searchattribute');
-
-      // Log final result
-      // console.log('Final query result:', query);
-      element.innerText = query ? query : "default missing endpoint attribute";
+      // Replace the initial content with the dynamic content
+      assignedElement.textContent = query || initialContent || 'default missing endpoint attribute';
 
     } catch (error) {
       console.error('Error:', error);
+      // If there's an error, the initial content remains
+      assignedElement.textContent = initialContent;
+    } finally {
+      loadingElement.style.display = 'none'; // Hide loading indicator
+      // Remove the attributes to prevent them from being seen in the inspector
+      this.removeAttribute('endpoint');
+      this.removeAttribute('searchAttribute');
+      this.removeAttribute('stateThis');
     }
   }
 }
 
+// Define the custom element
 customElements.define('async-tag', InjectorGenerator);
