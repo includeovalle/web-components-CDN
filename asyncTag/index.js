@@ -1,6 +1,6 @@
-      // <async-tag endpoint="/api/user" searchAttribute="user" stateThis="true">
-      //   <span slot="tag"> user name</span>
-      // </async-tag>
+// <async-tag endpoint="/api/user" searchAttribute="user" storedData="localStore">
+//   <strong slot="tag">user name</strong>
+// </async-tag>
 
 const template = document.createElement('template');
 template.innerHTML = `
@@ -18,11 +18,11 @@ class InjectorGenerator extends HTMLElement {
   async connectedCallback() {
     const endpoint = this.getAttribute('endpoint');
     const attribute = this.getAttribute('searchAttribute');
-    const stateThis = this.getAttribute('stateThis') === "true"; // Ensure it's a boolean
+    const _data = this.getAttribute('storedData');
 
     // Find the slot with name="tag"
     const slotElement = this.shadowRoot.querySelector('slot[name="tag"]');
-    
+
     // Check for assigned element to the slot
     const assignedElements = slotElement.assignedNodes();
     const assignedElement = assignedElements.length > 0 ? assignedElements[0] : null;
@@ -35,46 +35,9 @@ class InjectorGenerator extends HTMLElement {
     // Preserve initial content in case fetch fails or is delayed
     const initialContent = assignedElement.textContent.trim();
 
-    // Cache and fetch state initialization
-    if (!window._asyncTagState) {
-      window._asyncTagState = {}; // Initialize cache if not present
-    }
-    if (!window._asyncTagFetchInProgress) {
-      window._asyncTagFetchInProgress = {}; // Track fetch requests
-    }
-
+    // Show loading indicator
     const loadingElement = this.shadowRoot.querySelector('.loading');
-    loadingElement.style.display = 'block'; // Show loading indicator
-
-    const cacheProxy = new Proxy(window._asyncTagState, {
-      get: async (target, prop) => {
-        const decodedProp = decodeURIComponent(prop);
-
-        if (decodedProp in target) {
-          return target[decodedProp]; // Return cached data if available
-        }
-
-        if (window._asyncTagFetchInProgress[decodedProp]) {
-          return window._asyncTagFetchInProgress[decodedProp];
-        }
-
-        // Fetch in progress, return a Promise for all awaiting calls
-        window._asyncTagFetchInProgress[decodedProp] = fetch(decodedProp)
-          .then(async (response) => {
-            if (!response.ok) {
-              throw new Error('Network response was not ok');
-            }
-            const data = await response.json();
-            target[decodedProp] = data; // Cache the fetched data
-            return data;
-          })
-          .finally(() => {
-            delete window._asyncTagFetchInProgress[decodedProp]; // Cleanup after fetch
-          });
-
-        return window._asyncTagFetchInProgress[decodedProp];
-      },
-    });
+    loadingElement.style.display = 'block';
 
     try {
       if (!endpoint) {
@@ -82,36 +45,51 @@ class InjectorGenerator extends HTMLElement {
         return;
       }
 
-      let query;
-      const encodedEndpoint = encodeURIComponent(endpoint); // Cache and fetch based on the encoded endpoint
-      if (stateThis) {
-        const data = await cacheProxy[encodedEndpoint]; // Fetch or use cached data
-        query = data ? data[attribute] : null;
+      // Wait for 80ms before checking if data exists in window._data
+      await new Promise(resolve => setTimeout(resolve, 80));
+
+      // After 80ms, check if the data exists in window.localStore
+      const storedData = window[_data] ? window[_data][endpoint] : null;
+
+      if (storedData) {
+        // If the data is available, use it
+        assignedElement.textContent = storedData[attribute] || 'No data available'; // Update with the retrieved data
       } else {
+        // If no stored data is available after 80ms, handle the case by either showing the initial content or fetching it
+        assignedElement.textContent = initialContent || 'default missing endpoint attribute';
+
+        // Here you can add your fetch logic to get the data from the endpoint
+        // Example fetch logic (you can modify it as needed):
         const response = await fetch(endpoint);
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error(`Error fetching from ${endpoint}: ${response.statusText}`);
         }
         const data = await response.json();
-        query = data[attribute];
+
+        // Store the fetched data in window.localStore
+        if (window[_data]) {
+          window[_data][endpoint] = data; // Store data
+        } else {
+          window[_data] = { [endpoint]: data }; // Initialize storage
+        }
+
+        // Update the content with the fetched data
+        assignedElement.textContent = data[attribute] || 'No data available'; // Update with the fetched data
       }
-
-      // Replace the initial content with the dynamic content
-      assignedElement.textContent = query || initialContent || 'default missing endpoint attribute';
-
     } catch (error) {
       console.error('Error:', error);
       // If there's an error, the initial content remains
       assignedElement.textContent = initialContent;
     } finally {
       loadingElement.style.display = 'none'; // Hide loading indicator
-      // Remove the attributes to prevent them from being seen in the inspector
-      this.removeAttribute('endpoint');
-      this.removeAttribute('searchAttribute');
-      this.removeAttribute('stateThis');
     }
   }
 }
 
 // Define the custom element
 customElements.define('async-tag', InjectorGenerator);
+
+
+
+
+
