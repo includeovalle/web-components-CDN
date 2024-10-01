@@ -62,7 +62,7 @@ class ProxyStore extends HTMLElement {
       });
       this.isProxyInitialized = true;  // Mark proxy as initialized
     } else {
-      console.log(`[ProxyStore] Proxy for '${objectName}' already initialized.`);
+      // console.log(`[ProxyStore] Proxy for '${objectName}' already initialized.`);
     }
   }
 
@@ -93,7 +93,7 @@ class ProxyStore extends HTMLElement {
 
       // Check if the data is already cached in the Proxy
       if (this.proxy[endpoint]) {
-        console.log(`[ProxyStore] Using cached data for: ${endpoint}`);
+        // console.log(`[ProxyStore] Using cached data for: ${endpoint}`);
         return; // Skip fetch if data exists in Proxy
       }
 
@@ -105,10 +105,10 @@ class ProxyStore extends HTMLElement {
           return response.json();
         })
         .then(data => {
-          console.log(`${this.objectName} Storing data from ${endpoint}`);
+          // console.log(`${this.objectName} Storing data from ${endpoint}`);
           if (this.proxy) {
             this.proxy[endpoint] = data;
-            console.log(`[ProxyStore] Retrieved data for ${endpoint}:`, data); // Log the retrieved data
+            // console.log(`[ProxyStore] Retrieved data for ${endpoint}:`, data); // Log the retrieved data
           } else {
             console.error(`[ProxyStore] Proxy is not initialized.`);
           }
@@ -122,7 +122,7 @@ class ProxyStore extends HTMLElement {
   handleEndpointsChange(newValue) {
     try {
       const newEndpoints = JSON.parse(newValue);
-      console.log(`[ProxyStore] New endpoints received:`, newEndpoints);
+      // console.log(`[ProxyStore] New endpoints received:`, newEndpoints);
       this.fetchAndStoreEndpoints(newEndpoints);
     } catch (err) {
       console.error(`[ProxyStore] Invalid endpoints format`, err);
@@ -131,9 +131,3 @@ class ProxyStore extends HTMLElement {
 }
 
 customElements.define('proxy-store', ProxyStore);
-
-
-
-
-
-
