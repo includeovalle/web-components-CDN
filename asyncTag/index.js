@@ -45,17 +45,17 @@ class InjectorGenerator extends HTMLElement {
         return;
       }
 
-      // Wait for 80ms before checking if data exists in window._data
-      await new Promise(resolve => setTimeout(resolve, 80));
+      // Wait for 180ms before checking if data exists in window._data
+      await new Promise(resolve => setTimeout(resolve, 180));
 
-      // After 80ms, check if the data exists in window.localStore
+      // After 180ms, check if the data exists in window.localStore
       const storedData = window[_data] ? window[_data][endpoint] : null;
 
       if (storedData) {
         // If the data is available, use it
         assignedElement.textContent = storedData[attribute] || 'No data available'; // Update with the retrieved data
       } else {
-        // If no stored data is available after 80ms, handle the case by either showing the initial content or fetching it
+        // If no stored data is available after 180ms, handle the case by either showing the initial content or fetching it
         assignedElement.textContent = initialContent || 'default missing endpoint attribute';
 
         // Here you can add your fetch logic to get the data from the endpoint
