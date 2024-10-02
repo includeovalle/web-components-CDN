@@ -15,9 +15,9 @@
   *
   * Sort when clicked on headers
   * edit record when editButtonText, cancelButtonText and deleteButtonText are passed.
-  * fetch from custom Proxy state first
-  * fetch from API if Proxy didn't  exist
-  * fallback to slot name="tag" if endpoint is empty
+  * if storedData is passed this will fetch from custom Proxy state
+  * if storedData is NOT passed this will fetch from localhost/api API
+  * fallback to slot name="tag" if anything goes wrong
   */
 
 /*USE EXAMPLES:
@@ -85,7 +85,7 @@ async connectedCallback() {
   }
 
   // If no data is found in window[storedData], fetch it from the API
-  if (!data || data.length === 0) {
+  if (!data ) {
     try {
       const response = await fetch(this.storedComponents.endpoint);
       const fetchedData = await response.json();
@@ -102,7 +102,7 @@ async connectedCallback() {
 
   // Ensure data is an array or at least not empty
   if (!Array.isArray(data) || data.length === 0) {
-    console.warn('Data is empty. Showing slot content.');
+    console.warn('Data endpoint is empty. Showing slot content.');
     return; // Do not proceed to render the table if data is empty or invalid
   }
 
