@@ -1,4 +1,4 @@
-// attributes: 
+// ATTRIBUTES: 
 // endpoint : string; points the endpoint to get data
 // searchAttribute: "/data"; represents the attribute we are getting from endpoint
 // editEndpoint: string; is the enpoint to make changes to a record
@@ -19,6 +19,36 @@
   * fetch from API if Proxy didn't  exist
   * fallback to slot name="tag" if endpoint is empty
   */
+
+/*USE EXAMPLES:
+  *
+  * Full_editable:
+      <async-table
+          class="custom--table wide-inset-padding"
+          endpoint="/api/data"
+          hideFromView="id,usuario"
+          searchAttribute="data"
+          editEndpoint="/api/update"
+          deleteEndpoint="/api/delete"
+          cancelButtonText="Cancelar"
+          editButtonText="Actualizar ✅"
+          deleteButtonText="❌ BORRAR registro ❌"
+          storedData="localStore"
+        >
+        <p slot="tag"> No has registrado nada</p>
+      </async-table>
+  *
+  *
+  * Content_show:
+        <async-table endpoint="/api/teams" searchAttribute="teams" storedData="localStore" hideFromView="id">
+          <p slot="tag">Actualmente no tienes equipos.</p>
+          <h3 slot="tag"> Crea un equipo: </h3>
+          <br slot="tag">
+          <button slot="tag" class="cta" data-modal>CREA TU EQUIPO</button>
+        </async-table>
+  *
+  */
+
 class AsyncTable extends HTMLElement {
   constructor() {
     super();
