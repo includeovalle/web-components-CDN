@@ -1,10 +1,24 @@
 // attributes: 
 // endpoint : string; points the endpoint to get data
-// hideFromView: [item1,item2,item3]; array of strings which contains columns to hide
 // searchAttribute: "/data"; represents the attribute we are getting from endpoint
+// editEndpoint: string; is the enpoint to make changes to a record
+// editButtonText: string; is the text that will be shown in the button editEndpoint.
+// deleteEndpoint: string; is endpoint to delete a record
+// deleteButtonText: string; is the text that will be shown in the button deleteEndpoint. 
+// cancelButtonText: string; is the text for the cancel button when editing a record
+// hideFromView: [item1,item2,item3]; array of strings which contains columns to hide
 // className: this isn't a shadow dom component so we can use userss custom className
-// editEndpoint: conditional string. if is set will apply modals logic
+// storedData: string; this is a Proxy state created by user will be accesed by window[storedData] 
 
+
+/* FUCTIONALITIES:
+  *
+  * Sort when clicked on headers
+  * edit record when editButtonText, cancelButtonText and deleteButtonText are passed.
+  * fetch from custom Proxy state first
+  * fetch from API if Proxy didn't  exist
+  * fallback to slot name="tag" if endpoint is empty
+  */
 class AsyncTable extends HTMLElement {
   constructor() {
     super();
@@ -12,38 +26,73 @@ class AsyncTable extends HTMLElement {
     this.currentRowData = null; // Store the row data being edited
   }
 
-  async connectedCallback() {
-    // Store the attribute values in storedComponents
-    this.storedComponents = {
-      className: this.getAttribute('class') || '',
-      endpoint: this.getAttribute('endpoint'),
-      hideFromView: this.getAttribute('hideFromView'),
-      searchAttribute: this.getAttribute('searchAttribute'),
-      editEndpoint: this.getAttribute('editEndpoint'),
-      deleteEndpoint: this.getAttribute('deleteEndpoint'),
-      deleteButtonText: this.getAttribute('deleteButtonText'),
-      editButtonText: this.getAttribute('editButtonText'),
-      cancelButtonText: this.getAttribute('cancelButtonText')
-    };
+async connectedCallback() {
+  // Store the attribute values in storedComponents
+  this.storedComponents = {
+    className: this.getAttribute('class') || '',
+    endpoint: this.getAttribute('endpoint'),
+    hideFromView: this.getAttribute('hideFromView'),
+    searchAttribute: this.getAttribute('searchAttribute'),
+    editEndpoint: this.getAttribute('editEndpoint'),
+    deleteEndpoint: this.getAttribute('deleteEndpoint'),
+    deleteButtonText: this.getAttribute('deleteButtonText'),
+    editButtonText: this.getAttribute('editButtonText'),
+    cancelButtonText: this.getAttribute('cancelButtonText'),
+    storedData: this.getAttribute('storedData')
+  };
 
-    // Fetch data from the endpoint
-    const response = await fetch(this.storedComponents.endpoint);
-    const data = await response.json();
-    this.rows = data[this.storedComponents.searchAttribute] || [];
-    this.hiddenColumns = this.getHiddenColumns(this.storedComponents.hideFromView);
+  let data = null;
 
-    // Render the table
-    this.renderTable({
-      className: this.storedComponents.className
-      , deleteButtonText: this.storedComponents.deleteButtonText
-      , editButtonText: this.storedComponents.editButtonText
-      , cancelButtonText: this.storedComponents.cancelButtonText
-    });
+  // Wait for 200ms before checking for the state in window[storedData]
+  await new Promise(resolve => setTimeout(resolve, 200));
+
+  // Check if storedData exists in window
+  if (this.storedComponents.storedData && window[this.storedComponents.storedData]) {
+    // Extract the data from Proxy
+    const proxyData = window[this.storedComponents.storedData];
+    data = proxyData[this.storedComponents.endpoint]?.[this.storedComponents.searchAttribute] || [];
+    // console.log('Data loaded from window:', data);
   }
+
+  // If no data is found in window[storedData], fetch it from the API
+  if (!data || data.length === 0) {
+    try {
+      const response = await fetch(this.storedComponents.endpoint);
+      const fetchedData = await response.json();
+      data = fetchedData[this.storedComponents.searchAttribute] || [];
+      // console.log('Data fetched from API:', data);
+
+      // Optionally, store fetched data in window for future use
+      window[this.storedComponents.storedData] = fetchedData; // Store the entire response
+    } catch (error) {
+      console.error('Failed to fetch data from API:', error);
+      return; // Exit if fetch fails
+    }
+  }
+
+  // Ensure data is an array or at least not empty
+  if (!Array.isArray(data) || data.length === 0) {
+    console.warn('Data is empty. Showing slot content.');
+    return; // Do not proceed to render the table if data is empty or invalid
+  }
+
+  // Proceed to store rows and hidden columns after obtaining data
+  this.rows = data;
+  this.hiddenColumns = this.getHiddenColumns(this.storedComponents.hideFromView);
+
+  // Render the table
+  this.renderTable({
+    className: this.storedComponents.className,
+    deleteButtonText: this.storedComponents.deleteButtonText,
+    editButtonText: this.storedComponents.editButtonText,
+    cancelButtonText: this.storedComponents.cancelButtonText
+  });
+}
 
   renderTable({ className, cancelButtonText, editButtonText, deleteButtonText }) {
     const template = document.createElement('template');
     template.innerHTML = `
+      <slot name="tag"></slot>
       <table class="${className}">
         <thead>
           <tr id="header-row"></tr>
@@ -98,23 +147,33 @@ class AsyncTable extends HTMLElement {
     this.setupDialogListeners();
   }
 
-  renderRows(tbody, dataArray, hiddenColumns) {
-    tbody.innerHTML = ''; // Clear existing rows
-    dataArray.forEach((row, rowIndex) => {
-      const tr = document.createElement('tr');
-      Object.keys(row).forEach(header => {
-        if (!hiddenColumns.includes(header)) {
-          const td = document.createElement('td');
-          td.textContent = row[header];
-          tr.appendChild(td);
-        }
-      });
+renderRows(tbody, dataArray, hiddenColumns) {
+  tbody.innerHTML = ''; // Clear existing rows
+  
+  const { deleteButtonText, editButtonText, cancelButtonText } = this.storedComponents;
 
-      // Add onclick event to open dialog for editing the clicked row
-      tr.addEventListener('click', () => this.openEditDialog(row, rowIndex));
-      tbody.appendChild(tr);
+  // Check if the buttons are set to determine if editing functionality should be added
+  const shouldEnableEdit = deleteButtonText && editButtonText && cancelButtonText;
+
+  dataArray.forEach((row, rowIndex) => {
+    const tr = document.createElement('tr');
+    
+    Object.keys(row).forEach(header => {
+      if (!hiddenColumns.includes(header)) {
+        const td = document.createElement('td');
+        td.textContent = row[header];
+        tr.appendChild(td);
+      }
     });
-  }
+
+    // Conditionally add onclick event to open dialog for editing the clicked row
+    if (shouldEnableEdit) {
+      tr.addEventListener('click', () => this.openEditDialog(row, rowIndex));
+    }
+
+    tbody.appendChild(tr);
+  });
+}
 
   // Open the dialog to edit the selected row
   openEditDialog(rowData, rowIndex) {
@@ -202,7 +261,7 @@ class AsyncTable extends HTMLElement {
     const username = this.currentRowData['usuario']; // Assuming 'usuario' is the username field
     const id = this.currentRowData['id']; // Assuming 'id' is the item identifier
 
-    console.log({ deleteEndpoint })
+    // console.log({ deleteEndpoint })
     try {
       const response = await fetch(deleteEndpoint, {
         method: 'POST',
