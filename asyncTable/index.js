@@ -61,7 +61,7 @@ class AsyncTable extends HTMLElement {
     let data = null;
 
     // Wait for 200ms before checking for the state in window[storedData]
-    await new Promise(resolve => setTimeout(resolve, 200));
+    await new Promise(resolve => setTimeout(resolve, 400));
 
     // Check if storedData exists in window
     if (this.storedComponents.storedData && window[this.storedComponents.storedData]) {
