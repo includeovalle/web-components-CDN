@@ -165,16 +165,16 @@ renderRows(tbody, dataArray, hiddenColumns) {
       }
     });
 
-    // If there's an extra slot element, move and append it
+    // Move and append the original elementExtraSlot for each row
     if (this.storedComponents.elementExtraSlot) {
       const extraRowContainer = document.createElement('td');
-      
-      // Instead of cloning, move the slot element and keep its event listeners
-      const originalElement = this.storedComponents.elementExtraSlot;
 
-      // Display the element and move it to the new row
-      originalElement.style.display = 'block';
-      extraRowContainer.appendChild(originalElement);
+      // Move the original elementExtraSlot to the new row
+      const elementToMove = this.storedComponents.elementExtraSlot;
+      elementToMove.style.display = 'block';
+
+      // Append without cloning, keeping original event listeners and logic intact
+      extraRowContainer.appendChild(elementToMove);
       tr.appendChild(extraRowContainer);
     }
 
