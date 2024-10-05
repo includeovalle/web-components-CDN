@@ -1,3 +1,4 @@
+
 // ATTRIBUTES: 
 // endpoint : string; points the endpoint to get data
 // searchAttribute: "/data"; represents the attribute we are getting from endpoint
@@ -164,15 +165,16 @@ renderRows(tbody, dataArray, hiddenColumns) {
       }
     });
 
-    // Add extra button container if editing is enabled
+    // If there's an extra slot element, move and append it
     if (this.storedComponents.elementExtraSlot) {
-      // Clone the extra slot element for each row
-      const clone = this.storedComponents.elementExtraSlot.cloneNode(true);
       const extraRowContainer = document.createElement('td');
+      
+      // Instead of cloning, move the slot element and keep its event listeners
+      const originalElement = this.storedComponents.elementExtraSlot;
 
-      // Show and append the cloned content for this row
-      clone.style.display = 'block';
-      extraRowContainer.appendChild(clone);
+      // Display the element and move it to the new row
+      originalElement.style.display = 'block';
+      extraRowContainer.appendChild(originalElement);
       tr.appendChild(extraRowContainer);
     }
 
