@@ -1,3 +1,4 @@
+// Published: Sun Oct  6 01:13:22 PM CST 2024
 
 // ATTRIBUTES: 
 // endpoint : string; points the endpoint to get data
@@ -62,7 +63,7 @@ class AsyncTable extends HTMLElement {
     let data = null;
 
     // Wait for 200ms before checking for the state in window[storedData]
-    await new Promise(resolve => setTimeout(resolve, 400));
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     // Check if storedData exists in window
     if (this.storedComponents.storedData && window[this.storedComponents.storedData]) {
@@ -165,16 +166,15 @@ renderRows(tbody, dataArray, hiddenColumns) {
       }
     });
 
-    // Move and append the original elementExtraSlot for each row
+    // Add extra button container if editing is enabled
     if (this.storedComponents.elementExtraSlot) {
+      // Clone the extra slot element for each row
+      const clone = this.storedComponents.elementExtraSlot.cloneNode(true);
       const extraRowContainer = document.createElement('td');
 
-      // Move the original elementExtraSlot to the new row
-      const elementToMove = this.storedComponents.elementExtraSlot;
-      elementToMove.style.display = 'block';
-
-      // Append without cloning, keeping original event listeners and logic intact
-      extraRowContainer.appendChild(elementToMove);
+      // Show and append the cloned content for this row
+      clone.style.display = 'block';
+      extraRowContainer.appendChild(clone);
       tr.appendChild(extraRowContainer);
     }
 
