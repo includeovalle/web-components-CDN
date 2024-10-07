@@ -1,4 +1,3 @@
-
 /*
  * FUNCTIONALITIES:
  * this web component creates a button
@@ -10,16 +9,13 @@
  * searchAttributes: array of strings; this contain the names of the table-fields this will populate into dialog
  * buttonText: string; The inner text of the button
  * class: strings user custom classes
+ * closeButton: string; is a custom user data-styled-button for close the dialog
  *
-        <open-dialog 
-          class="cta font-small" 
-          openDialog="data-edit"
-          searchAttributes='["id", "fecha", "compra", "cantidad", "costo", "lugar", "notas"]'
-          buttonText="Editar"
-        >
-        </open-dialog>
-
-          <open-dialog class="cta font-small" openDialog="data-delete" searchAttributes='["id"]' buttonText="Borrar"></open-dialog>
+ * EXAMPLES:
+ * using the row search function to get searchAttributes
+ *          <open-dialog closeButton="data-edit-close" class="cta font-small" openDialog="data-edit" searchAttributes='["equipo"]' buttonText="Editar"></open-dialog>
+ * NOT passing params only open/close modal
+            <open-dialog closeButton="data-invite-users-close" class="cta font-small" openDialog="data-invite-users" buttonText="Invitar a este equipo"></open-dialog>
  *
  */
 
@@ -34,8 +30,6 @@ class OpenDialog extends HTMLElement {
     template.innerHTML = `
         <button id="open-btn"></button>
       `;
-
-    // Append the template content to the component
     this.appendChild(template.content.cloneNode(true));
   }
 
@@ -62,25 +56,47 @@ class OpenDialog extends HTMLElement {
 
   openDialog() {
     const openDialogAttr = this.getAttribute('openDialog');
-    const searchAttributes = JSON.parse(this.getAttribute('searchAttributes'));
+    const closeButtonAttr = this.getAttribute('closeButton');
+    const searchAttributes = this.getAttribute('searchAttributes');
     const dialog = document.querySelector(`[${openDialogAttr}]`);
-    const row = this.closest('tr');
-    const editFieldsContainer = dialog.querySelector('#edit-fields');
 
-    if (!dialog || !editFieldsContainer || !row) {
-      console.error('Dialog, edit fields container, or row not found.');
+    if (!dialog) {
+      console.error('Dialog not found.');
       return;
     }
 
-    // Clear previous content
-    editFieldsContainer.innerHTML = '';
+    // If closeButton attribute is provided, find the button and attach the close event
+    if (closeButtonAttr) {
+      const closeButton = dialog.querySelector(`[${closeButtonAttr}]`);
+      if (closeButton) {
+        closeButton.addEventListener('click', () => this.closeDialogFunction(dialog));
+      } else {
+        console.error('Close button not found.');
+      }
+    }
 
-    // Create an object to store passed attributes and their values
+    // If searchAttributes is not provided, open the dialog without populating
+    if (!searchAttributes) {
+      dialog.showModal();
+      return;
+    }
+
+    const editFieldsContainer = dialog.querySelector('#edit-fields');
+    const row = this.closest('tr');
+
+    if (!editFieldsContainer || !row) {
+      console.error('Edit fields container or row not found.');
+      return;
+    }
+
+    // Clear previous content and populate the dialog if searchAttributes are provided
+    editFieldsContainer.innerHTML = '';
+    const attributesArray = JSON.parse(searchAttributes);
     const storedAttributes = {};
 
-    searchAttributes.forEach((attr, index) => {
+    attributesArray.forEach((attr, index) => {
       const value = row.querySelector(`td:nth-child(${index + 1})`).textContent || '';
-      storedAttributes[attr] = value; // Store attribute and value in the object
+      storedAttributes[attr] = value;
 
       // Dynamically create form fields based on the attributes
       const fieldWrapper = document.createElement('label');
@@ -91,11 +107,12 @@ class OpenDialog extends HTMLElement {
       editFieldsContainer.appendChild(fieldWrapper);
     });
 
-    // Log the `storedAttributes` object for debugging purposes or future use
-    // console.log('Stored Attributes:', storedAttributes);
-
-    // Open the dialog
+    // Open the dialog after populating
     dialog.showModal();
+  }
+
+  closeDialogFunction(element) {
+    element.close();
   }
 }
 
