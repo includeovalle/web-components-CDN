@@ -26,7 +26,7 @@ class AsyncIf extends HTMLElement {
       }
 
       // Wait before checking if data exists in window._data
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Check if data exists in window.localStore
       const storedData = window[_data] ? window[_data][endpoint] : null;
