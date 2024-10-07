@@ -1,4 +1,4 @@
-// Published: Sun Oct  6 01:13:22 PM CST 2024
+// Published: Mon Oct  7 12:05:20 PM CST 2024
 
 // ATTRIBUTES: 
 // endpoint : string; points the endpoint to get data
@@ -57,8 +57,10 @@ class AsyncTable extends HTMLElement {
       hideFromView: this.getAttribute('hideFromView'),
       searchAttribute: this.getAttribute('searchAttribute'),
       storedData: this.getAttribute('storedData'),
-      elementExtraSlot: document.querySelector('[data-extra-slot]'),
     };
+
+    // Check if this specific table instance has a data-extra-slot element
+    this.elementExtraSlot = this.querySelector('[data-extra-slot]');
 
     let data = null;
 
@@ -70,7 +72,6 @@ class AsyncTable extends HTMLElement {
       // Extract the data from Proxy
       const proxyData = window[this.storedComponents.storedData];
       data = proxyData[this.storedComponents.endpoint]?.[this.storedComponents.searchAttribute] || [];
-      // console.log('Data loaded from window:', data);
     }
 
     // If no data is found in window[storedData], fetch it from the API
@@ -79,7 +80,6 @@ class AsyncTable extends HTMLElement {
         const response = await fetch(this.storedComponents.endpoint);
         const fetchedData = await response.json();
         data = fetchedData[this.storedComponents.searchAttribute] || [];
-        // console.log('Data fetched from API:', data);
 
         // Optionally, store fetched data in window for future use
         window[this.storedComponents.storedData] = fetchedData; // Store the entire response
@@ -133,7 +133,6 @@ class AsyncTable extends HTMLElement {
         th.textContent = header;
 
         // Add click event for sorting
-
         th.addEventListener('click', () => this.sortTable(header));
 
         headerRow.appendChild(th);
@@ -146,41 +145,35 @@ class AsyncTable extends HTMLElement {
     // Clear previous content and append new table
     this.innerHTML = ''; // Clear existing content
     this.appendChild(tableClone); // Append the table
-
-    // Set up event listeners for dialog actions
-    // this.setupDialogListeners();
   }
 
-renderRows(tbody, dataArray, hiddenColumns) {
-  tbody.innerHTML = ''; // Clear existing rows
+  renderRows(tbody, dataArray, hiddenColumns) {
+    tbody.innerHTML = ''; // Clear existing rows
 
-  dataArray.forEach((row, rowIndex) => {
-    const tr = document.createElement('tr');
+    dataArray.forEach((row) => {
+      const tr = document.createElement('tr');
 
-    // Add the data for each column in the row
-    Object.keys(row).forEach(header => {
-      if (!hiddenColumns.includes(header)) {
-        const td = document.createElement('td');
-        td.textContent = row[header];
-        tr.appendChild(td);
+      // Add the data for each column in the row
+      Object.keys(row).forEach(header => {
+        if (!hiddenColumns.includes(header)) {
+          const td = document.createElement('td');
+          td.textContent = row[header];
+          tr.appendChild(td);
+        }
+      });
+
+      // Check for extra slot only in the current table instance
+      if (this.elementExtraSlot) {
+        const clone = this.elementExtraSlot.cloneNode(true);
+        const extraRowContainer = document.createElement('td');
+        clone.style.display = 'block';
+        extraRowContainer.appendChild(clone);
+        tr.appendChild(extraRowContainer);
       }
+
+      tbody.appendChild(tr);
     });
-
-    // Add extra button container if editing is enabled
-    if (this.storedComponents.elementExtraSlot) {
-      // Clone the extra slot element for each row
-      const clone = this.storedComponents.elementExtraSlot.cloneNode(true);
-      const extraRowContainer = document.createElement('td');
-
-      // Show and append the cloned content for this row
-      clone.style.display = 'block';
-      extraRowContainer.appendChild(clone);
-      tr.appendChild(extraRowContainer);
-    }
-
-    tbody.appendChild(tr);
-  });
-}
+  }
 
   sortTable(header) {
     // Toggle sort state
@@ -191,15 +184,11 @@ renderRows(tbody, dataArray, hiddenColumns) {
       const aValue = header === 'price' ? parseFloat(a[header]) : a[header];
       const bValue = header === 'price' ? parseFloat(b[header]) : b[header];
 
-      // Handle numeric vs string comparison
-      // Handle numeric and string comparisons
       if (!isNaN(parseFloat(aValue)) && !isNaN(parseFloat(bValue))) {
-        // Convert to numbers if possible (for strings like "12.34")
         const numA = parseFloat(aValue);
         const numB = parseFloat(bValue);
         return this.sortState[header] === 'asc' ? numA - numB : numB - numA;
       } else {
-        // Fallback to lexicographic comparison if values are not numbers
         return this.sortState[header] === 'asc'
           ? (aValue > bValue ? 1 : -1)
           : (aValue < bValue ? 1 : -1);
