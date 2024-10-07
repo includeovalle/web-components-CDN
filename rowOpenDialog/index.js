@@ -1,4 +1,4 @@
-/*
+/* Mon Oct  7 03:43:05 PM CST 2024
  * FUNCTIONALITIES:
  * this web component creates a button
  * receibes a dialog
@@ -25,13 +25,16 @@ class OpenDialog extends HTMLElement {
     this.attachTemplate();
   }
 
-  attachTemplate() {
+attachTemplate() {
+  // Only attach the button if it's not already present
+  if (!this.querySelector('#open-btn')) {
     const template = document.createElement('template');
     template.innerHTML = `
         <button id="open-btn"></button>
-      `;
+    `;
     this.appendChild(template.content.cloneNode(true));
   }
+}
 
   connectedCallback() {
     const button = this.querySelector('#open-btn');
