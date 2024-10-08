@@ -1,4 +1,5 @@
-/* Mon Oct  7 03:43:05 PM CST 2024
+/* Tue Oct  8 05:05:13 PM CST 2024
+ *
  * FUNCTIONALITIES:
  * this web component creates a button
  * receibes a dialog
@@ -25,16 +26,16 @@ class OpenDialog extends HTMLElement {
     this.attachTemplate();
   }
 
-attachTemplate() {
-  // Only attach the button if it's not already present
-  if (!this.querySelector('#open-btn')) {
-    const template = document.createElement('template');
-    template.innerHTML = `
+  attachTemplate() {
+    // Only attach the button if it's not already present
+    if (!this.querySelector('#open-btn')) {
+      const template = document.createElement('template');
+      template.innerHTML = `
         <button id="open-btn"></button>
     `;
-    this.appendChild(template.content.cloneNode(true));
+      this.appendChild(template.content.cloneNode(true));
+    }
   }
-}
 
   connectedCallback() {
     const button = this.querySelector('#open-btn');
@@ -97,17 +98,25 @@ attachTemplate() {
     const attributesArray = JSON.parse(searchAttributes);
     const storedAttributes = {};
 
-    attributesArray.forEach((attr, index) => {
-      const value = row.querySelector(`td:nth-child(${index + 1})`).textContent || '';
-      storedAttributes[attr] = value;
+    // Get the table headers
+    const headers = Array.from(row.closest('table').querySelectorAll('th')).map(th => th.textContent.trim());
 
-      // Dynamically create form fields based on the attributes
-      const fieldWrapper = document.createElement('label');
-      fieldWrapper.innerHTML = `
+    attributesArray.forEach(attr => {
+      const index = headers.indexOf(attr); // Find the index of the attribute in headers
+      if (index !== -1) {
+        const value = row.querySelector(`td:nth-child(${index + 1})`).textContent || '';
+        storedAttributes[attr] = value;
+
+        // Dynamically create form fields based on the attributes
+        const fieldWrapper = document.createElement('label');
+        fieldWrapper.innerHTML = `
           ${attr}: 
           <input type="text" name="${attr}" id="${attr}" value="${value}">
         `;
-      editFieldsContainer.appendChild(fieldWrapper);
+        editFieldsContainer.appendChild(fieldWrapper);
+      } else {
+        console.warn(`Attribute "${attr}" not found in table headers.`);
+      }
     });
 
     // Open the dialog after populating
