@@ -103,10 +103,8 @@ class AsyncButton extends HTMLElement {
                     window.location.href = this.storedAttributes.href;
                 }, 1600); // 2-second delay
             } else {
-                setTimeout(() => {
                 button.textContent = this.storedAttributes.errorText;
-                fatherForm.reset()
-                }, 1600); // 2-second delay
+                fatherForm?.reset()
             }
         } catch (error) {
             button.textContent = this.storedAttributes.errorText;
