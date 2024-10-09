@@ -1,4 +1,4 @@
-/* Tue Oct Wed Oct  9 01:18:04 AM CST 2024
+/* Wed Oct  9 04:27:17 PM CST 2024
  *
  * FUNCTIONALITIES:
  * this web component creates a button
@@ -61,9 +61,16 @@ class OpenDialog extends HTMLElement {
   openDialog() {
     const openDialogAttr = this.getAttribute('openDialog');
     const closeButtonAttr = this.getAttribute('closeButton');
-    const searchAttributes = this.getAttribute('searchAttributes');
-    const dialog = document.querySelector(`[${openDialogAttr}]`);
+    let searchAttributes;
 
+    try {
+      searchAttributes = JSON.parse(this.getAttribute('searchAttributes') || '[]');
+    } catch (e) {
+      console.error('Invalid searchAttributes format:', e);
+      return;
+    }
+
+    const dialog = document.querySelector(`[${openDialogAttr}]`);
     if (!dialog) {
       console.error('Dialog not found.');
       return;
@@ -78,7 +85,7 @@ class OpenDialog extends HTMLElement {
       }
     }
 
-    if (!searchAttributes) {
+    if (!searchAttributes.length) {
       dialog.showModal();
       return;
     }
@@ -92,33 +99,34 @@ class OpenDialog extends HTMLElement {
     }
 
     editFieldsContainer.innerHTML = '';
-    const attributesArray = JSON.parse(searchAttributes);
-    const headers = Array.from(row.closest('table').querySelectorAll('th')).map(th => th.textContent.trim());
+    // Normalize headers by trimming whitespace and making lowercase
+    const headers = Array.from(row.closest('table').querySelectorAll('th'))
+      .map(th => th.textContent.trim().toLowerCase());
 
-    attributesArray.forEach(attr => {
-      const index = headers.indexOf(attr);
+    searchAttributes.forEach(attr => {
+      const normalizedAttr = attr.trim().toLowerCase();
+      const index = headers.indexOf(normalizedAttr);
+
       if (index !== -1) {
         const value = row.querySelector(`td:nth-child(${index + 1})`).textContent.trim();
-
         const fieldWrapper = document.createElement('label');
+
         if (value === 'true' || value === 'false') {
           const isChecked = value === 'true';
           fieldWrapper.innerHTML = `
           ${attr}: 
-          <input type="checkbox" name="${attr}" id="${attr}" ${isChecked ? 'checked' : ''} value="${isChecked}">
+          <input type="checkbox" name="${attr}" ${isChecked ? 'checked' : ''} value="${isChecked}">
         `;
-          const checkbox = fieldWrapper.querySelector(`#${attr}`);
-
+          const checkbox = fieldWrapper.querySelector('input[type="checkbox"]');
           checkbox.addEventListener('change', () => {
             checkbox.value = checkbox.checked;
           });
         } else {
           fieldWrapper.innerHTML = `
           ${attr}: 
-          <input type="text" name="${attr}" id="${attr}" value="${value}">
+          <input type="text" name="${attr}" value="${value}">
         `;
         }
-
         editFieldsContainer.appendChild(fieldWrapper);
       } else {
         console.warn(`Attribute "${attr}" not found in table headers.`);
