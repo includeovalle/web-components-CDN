@@ -1,4 +1,4 @@
-/* Tue Oct  8 05:05:13 PM CST 2024
+/* Tue Oct Wed Oct  9 01:18:04 AM CST 2024
  *
  * FUNCTIONALITIES:
  * this web component creates a button
@@ -69,7 +69,6 @@ class OpenDialog extends HTMLElement {
       return;
     }
 
-    // If closeButton attribute is provided, find the button and attach the close event
     if (closeButtonAttr) {
       const closeButton = dialog.querySelector(`[${closeButtonAttr}]`);
       if (closeButton) {
@@ -79,13 +78,11 @@ class OpenDialog extends HTMLElement {
       }
     }
 
-    // If searchAttributes is not provided, open the dialog without populating
     if (!searchAttributes) {
       dialog.showModal();
       return;
     }
 
-    // Use slot to find the edit-fields container
     const editFieldsContainer = dialog.querySelector('[slot="edit-fields"]');
     const row = this.closest('tr');
 
@@ -94,33 +91,40 @@ class OpenDialog extends HTMLElement {
       return;
     }
 
-    // Clear previous content and populate the dialog if searchAttributes are provided
     editFieldsContainer.innerHTML = '';
     const attributesArray = JSON.parse(searchAttributes);
-    const storedAttributes = {};
-
-    // Get the table headers
     const headers = Array.from(row.closest('table').querySelectorAll('th')).map(th => th.textContent.trim());
 
     attributesArray.forEach(attr => {
-      const index = headers.indexOf(attr); // Find the index of the attribute in headers
+      const index = headers.indexOf(attr);
       if (index !== -1) {
-        const value = row.querySelector(`td:nth-child(${index + 1})`).textContent || '';
-        storedAttributes[attr] = value;
+        const value = row.querySelector(`td:nth-child(${index + 1})`).textContent.trim();
 
-        // Dynamically create form fields based on the attributes
         const fieldWrapper = document.createElement('label');
-        fieldWrapper.innerHTML = `
+        if (value === 'true' || value === 'false') {
+          const isChecked = value === 'true';
+          fieldWrapper.innerHTML = `
+          ${attr}: 
+          <input type="checkbox" name="${attr}" id="${attr}" ${isChecked ? 'checked' : ''} value="${isChecked}">
+        `;
+          const checkbox = fieldWrapper.querySelector(`#${attr}`);
+
+          checkbox.addEventListener('change', () => {
+            checkbox.value = checkbox.checked;
+          });
+        } else {
+          fieldWrapper.innerHTML = `
           ${attr}: 
           <input type="text" name="${attr}" id="${attr}" value="${value}">
         `;
+        }
+
         editFieldsContainer.appendChild(fieldWrapper);
       } else {
         console.warn(`Attribute "${attr}" not found in table headers.`);
       }
     });
 
-    // Open the dialog after populating
     dialog.showModal();
   }
 
