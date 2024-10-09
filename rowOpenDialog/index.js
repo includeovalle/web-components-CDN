@@ -85,7 +85,8 @@ class OpenDialog extends HTMLElement {
       return;
     }
 
-    const editFieldsContainer = dialog.querySelector('#edit-fields');
+    // Use slot to find the edit-fields container
+    const editFieldsContainer = dialog.querySelector('[slot="edit-fields"]');
     const row = this.closest('tr');
 
     if (!editFieldsContainer || !row) {
