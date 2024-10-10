@@ -1,4 +1,4 @@
-/* Wed Oct  9 04:27:17 PM CST 2024
+/* Wed Oct  9 10:08:56 PM CST 2024
  *
  * FUNCTIONALITIES:
  * this web component creates a button
@@ -115,7 +115,7 @@ class OpenDialog extends HTMLElement {
           const isChecked = value === 'true';
           fieldWrapper.innerHTML = `
           ${attr}: 
-          <input type="checkbox" name="${attr}" ${isChecked ? 'checked' : ''} value="${isChecked}">
+          <input type="checkbox" name="${attr}" id="${attr}" ${isChecked ? 'checked' : ''} value="${isChecked}">
         `;
           const checkbox = fieldWrapper.querySelector('input[type="checkbox"]');
           checkbox.addEventListener('change', () => {
@@ -124,7 +124,7 @@ class OpenDialog extends HTMLElement {
         } else {
           fieldWrapper.innerHTML = `
           ${attr}: 
-          <input type="text" name="${attr}" value="${value}">
+          <input type="text" name="${attr}" id="${attr}" value="${value}">
         `;
         }
         editFieldsContainer.appendChild(fieldWrapper);
