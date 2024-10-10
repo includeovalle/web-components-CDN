@@ -1,4 +1,4 @@
-/* Wed Oct  9 10:08:56 PM CST 2024
+/* Wed Oct  9 04:27:17 PM CST 2024
  *
  * FUNCTIONALITIES:
  * this web component creates a button
@@ -99,23 +99,27 @@ class OpenDialog extends HTMLElement {
     }
 
     editFieldsContainer.innerHTML = '';
-    // Normalize headers by trimming whitespace and making lowercase
+
+    // Normalize headers by trimming whitespace, making lowercase, and replacing spaces with underscores
     const headers = Array.from(row.closest('table').querySelectorAll('th'))
-      .map(th => th.textContent.trim().toLowerCase());
+      .map(th => th.textContent.trim().toLowerCase().replace(/\s+/g, '_'));
 
     searchAttributes.forEach(attr => {
-      const normalizedAttr = attr.trim().toLowerCase();
+      const normalizedAttr = attr.trim().toLowerCase().replace(/\s+/g, '_');
+      console.log(`Attribute '${attr}' normalized to '${normalizedAttr}'`); // Log for debugging
       const index = headers.indexOf(normalizedAttr);
 
       if (index !== -1) {
         const value = row.querySelector(`td:nth-child(${index + 1})`).textContent.trim();
         const fieldWrapper = document.createElement('label');
 
+        // Use the normalized attribute name for both label and input name
+        const displayAttr = normalizedAttr.replace(/_/g, ' '); // For human-readable label
         if (value === 'true' || value === 'false') {
           const isChecked = value === 'true';
           fieldWrapper.innerHTML = `
-          ${attr}: 
-          <input type="checkbox" name="${attr}" id="${attr}" ${isChecked ? 'checked' : ''} value="${isChecked}">
+          ${displayAttr}: 
+          <input type="checkbox" id="${normalizedAttr}" name="${normalizedAttr}" ${isChecked ? 'checked' : ''} value="${isChecked}">
         `;
           const checkbox = fieldWrapper.querySelector('input[type="checkbox"]');
           checkbox.addEventListener('change', () => {
@@ -123,8 +127,8 @@ class OpenDialog extends HTMLElement {
           });
         } else {
           fieldWrapper.innerHTML = `
-          ${attr}: 
-          <input type="text" name="${attr}" id="${attr}" value="${value}">
+          ${displayAttr}: 
+          <input type="text" id=${normalizedAttr} name="${normalizedAttr}" value="${value}">
         `;
         }
         editFieldsContainer.appendChild(fieldWrapper);
