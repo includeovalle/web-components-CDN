@@ -1,17 +1,19 @@
 // This component receibes a localStore, and enpoint  checks for info,
-// if nothing comes doesn'nt render anything, If shows displays slot tag
+// if that success will render slot="tag"
+// if that fails checks if slot default is provided to render its content
+// if nothing comes doesn'nt render anything
 //
 // USAGE:
 // <async-if endpoint="/api/teams"  storedData="localStore" searchAttribute="teams">
 //   <h2 slot="tag"> Los equipos a los que perteneces</h2>
+//   <h2> slot="default"> Aun no tienes Equipos</h2>
 // </async-if>
 
 class AsyncIf extends HTMLElement {
   constructor() {
     super();
-    // Template is defined but not attached yet
     this.template = document.createElement('template');
-    this.template.innerHTML = ` <slot name="tag" style="display: none"></slot> `;
+    this.template.innerHTML = `<slot name="tag" style="display: none"></slot>`;
   }
 
   async connectedCallback() {
@@ -25,52 +27,57 @@ class AsyncIf extends HTMLElement {
         return;
       }
 
-      // Wait before checking if data exists in window._data
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Check if data exists in window.localStore
       const storedData = window[_data] ? window[_data][endpoint] : null;
-
       let data;
 
       if (storedData) {
-        // Use stored data if available
         data = storedData;
       } else {
-        // Fetch data from the endpoint if not available in local storage
         const response = await fetch(endpoint);
         if (!response.ok) {
           throw new Error(`Error fetching from ${endpoint}: ${response.statusText}`);
         }
         data = await response.json();
 
-        // Store the fetched data in window.localStore
         if (window[_data]) {
-          window[_data][endpoint] = data; // Store data
+          window[_data][endpoint] = data;
         } else {
-          window[_data] = { [endpoint]: data }; // Initialize storage
+          window[_data] = { [endpoint]: data };
         }
       }
 
-      // Check if the data for the specified attribute is an empty array
       if (Array.isArray(data[attribute]) && data[attribute].length === 0) {
-        console.warn(`No data available for ${attribute}, removing component from DOM.`);
-        this.remove(); // Remove the component from the DOM
+        this.renderDefaultOnly();
       } else {
-        // Only append the template if the condition is satisfied
-        this.appendChild(this.template.content.cloneNode(true));
-
-        // Show the slot content
-        const slotElement = this.querySelector('slot[name="tag"]');
-        const assignedElements = slotElement.assignedNodes();
-        const assignedElement = assignedElements.length > 0 ? assignedElements[0] : null;
-        if (assignedElement) {
-          assignedElement.style.display = 'block';
-        }
+        this.renderTagOnly();
       }
     } catch (error) {
       console.error('Error:', error);
-      this.remove(); // Remove this component from the DOM on error
+      this.renderDefaultOnly();
+    }
+  }
+
+  renderDefaultOnly() {
+    const defaultSlotContent = this.querySelector('[slot="default"]');
+    const tagSlotContent = this.querySelector('[slot="tag"]');
+    if (defaultSlotContent) {
+      if (tagSlotContent) tagSlotContent.remove();
+      this.appendChild(defaultSlotContent); // Append without cloning
+    } else {
+      this.remove(); // Remove component if no default slot
+    }
+  }
+
+  renderTagOnly() {
+    const tagSlotContent = this.querySelector('[slot="tag"]');
+    const defaultSlotContent = this.querySelector('[slot="default"]');
+    if (defaultSlotContent) defaultSlotContent.remove();
+    this.appendChild(this.template.content.cloneNode(true));
+
+    if (tagSlotContent) {
+      tagSlotContent.style.display = 'block';
     }
   }
 }
