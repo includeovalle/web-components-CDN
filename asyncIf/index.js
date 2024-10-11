@@ -1,3 +1,4 @@
+// Fri Oct 11 03:38:00 PM CST 2024
 // This component receibes a localStore, and enpoint  checks for info,
 // if that success will render slot="tag"
 // if that fails checks if slot default is provided to render its content
