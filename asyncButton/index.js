@@ -1,3 +1,4 @@
+// Sat Oct 12 12:29:51 AM CST 2024
 // ids
 // Type: string
 // Description: A comma-separated list of IDs of input elements.
@@ -97,17 +98,19 @@ class AsyncButton extends HTMLElement {
                 },
                 body: formData ? JSON.stringify(formData) : null,
             });
-
-            if (response.ok && this.storedAttributes.href) {
+            if (response.ok ) {
                 setTimeout(() => {
+                  if(this.storedAttributes.href){
                     window.location.href = this.storedAttributes.href;
+                  }
+                  button.textContent = this.storedAttributes.loadingText;
                 }, 1600); // 2-second delay
             } else {
                 button.textContent = this.storedAttributes.errorText;
                 fatherForm?.reset()
             }
         } catch (error) {
-            button.textContent = this.storedAttributes.errorText;
+            button.textContent = this.storedAttributes.innerText;
         } finally {
             setTimeout(() => {
                 button.textContent = this.storedAttributes.innerText; // Restore initial text
@@ -139,5 +142,3 @@ class AsyncButton extends HTMLElement {
 }
 
 customElements.define('async-button', AsyncButton);
-
-
