@@ -1,144 +1,102 @@
-// Sat Oct 12 12:29:51 AM CST 2024
-// ids
-// Type: string
-// Description: A comma-separated list of IDs of input elements.
-// such elements must posses a NAME
-// The values of these NAME's will be collected and sent in the POST request.
-// Example: <async-button ids="username,password"></async-button>
+// BUTTON overhaul Sat Oct 12 09:15:57 PM CST 2024
+// instead of previous behavior which was to insert web component each time we need a post button
+// NOW: we register into this web-component the endpoints we are going to open on the page
+// <post-listener endpoints='["/api/teams/accept", "/api/teams/control", "endpoint3...",]'></post-listener>
+// so this webcomponent will search for buttons containing attribute 'endpoint'
+// then will attach the post functionalities
 
-// endpoint
-// Type: string
-// Description: The URL to which the POST request will be sent.
-// Example: <async-button endpoint="https://example.com/api/login"></async-button>
+class PostListener extends HTMLElement {
+  constructor() {
+    super();
+    this.endpoints = JSON.parse(this.getAttribute('endpoints') || '[]');
+  }
 
-// href
-// Type: string
-// Description: The URL to redirect to upon successful POST request. If the POST request fails, the page will reload.
-// Example: <async-button href="https://example.com/dashboard"></async-button>
+  connectedCallback() {
+    document.addEventListener('DOMContentLoaded', () => {
+      this.searchDomAndAttachListeners();
+    });
+  }
 
-// loading
-// Type: string (optional)
-// Description: The text to display on the button while the POST request is in progress. Defaults to "loading" if not provided.
-// Example: <async-button loading="Submitting..."></async-button>
+  searchDomAndAttachListeners() {
+    const elements = document.querySelectorAll('[endpoint]');
+    elements.forEach(button => {
+      const endpoint = button.getAttribute('endpoint').trim();
+      if (this.endpoints.map(e => e.trim()).includes(endpoint) && button.tagName.toLowerCase() === 'button') {
+        // Store attributes before removing them
+        const storedAttributes = {
+          successText: button.getAttribute('success') || 'Success',
+          errorText: button.getAttribute('error') || 'Error',
+          ids: JSON.parse(button.getAttribute('ids') || '[]'),
+          href: button.getAttribute('href'),
+          originalText: button.textContent.trim()
+        };
 
-// class
-// Type: string (optional)
-// Description: Any custom CSS classes to apply to the button element within the component.
-// Example: <async-button class="primary-button"></async-button>
+        // Remove attributes to keep button clean in the inspector
+        this.removeAttributes(button);
 
-//Example of use:
-// <async-button class="cta" loading="Registrado, bienvenido" ids="password1,username1" error="No se pudo registrar"  endpoint="/register" href="/">Registrarme</async-button>
+        // Add event listener to the button
+        button.addEventListener('click', () => this.handleButtonClick(button, endpoint, storedAttributes));
+      }
+    });
+  }
 
+  async handleButtonClick(button, endpoint, storedAttributes) {
+    if (button.requestInProgress) return;
+    button.requestInProgress = true;
 
+    this.disableButton(button);
 
-class AsyncButton extends HTMLElement {
-    constructor() {
-        super();
-        this.storedAttributes = {};
+    let formData = {};
+    storedAttributes.ids.forEach(id => {
+      const inputElement = document.getElementById(id);
+      if (inputElement) {
+        formData[inputElement.id] = inputElement.value;
+      }
+    });
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: Object.keys(formData).length ? JSON.stringify(formData) : null,
+      });
+
+      if (response.ok) {
+        button.textContent = storedAttributes.successText;
+        setTimeout(() => {
+          if (storedAttributes.href) {
+            window.location.href = storedAttributes.href;
+          } else {
+            button.closest('form')?.reset();
+          }
+        }, 1600);
+      } else {
+        button.textContent = storedAttributes.errorText;
+        button.closest('form')?.reset();
+      }
+    } catch (error) {
+      console.error("Error occurred during fetch:", error);
+      button.textContent = storedAttributes.errorText;
+    } finally {
+      setTimeout(() => {
+        button.textContent = storedAttributes.originalText;
+        button.disabled = false;
+        button.requestInProgress = false;
+      }, 1600);
     }
+  }
 
-    connectedCallback() {
-        this.storeAttributes();
-        this.render();
-        this.addEventListeners();
-        this.removeAttributes(); // Remove attributes after rendering
-    }
+  disableButton(button) {
+    button.disabled = true;
+  }
 
-    storeAttributes() {
-        this.storedAttributes.ids = this.getAttribute('ids')?.split(',') || [];
-        this.storedAttributes.endpoint = this.getAttribute('endpoint');
-        this.storedAttributes.href = this.getAttribute('href');
-        this.storedAttributes.loadingText = this.getAttribute('loading') || 'loading';
-        this.storedAttributes.errorText = this.getAttribute('error') || 'something went wrong';
-        this.storedAttributes.buttonClass = this.getAttribute('class') || '';
-        this.storedAttributes.innerText = this.textContent.trim(); // Store the initial button text
-    }
-
-    disableButton() {
-        this.querySelector('button').disabled = true;
-    }
-
-    validateForm() {
-        return this.storedAttributes.ids.every(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                return element.reportValidity();
-            }
-            return false;
-        });
-    }
-
-    async handleClick() {
-        if (this.storedAttributes.ids.length > 0 && !this.validateForm()) {
-            return; // Exit if the form is not valid
-        }
-
-        const button = this.querySelector('button');
-        const fatherForm = button.closest('form')
-        button.textContent = this.storedAttributes.loadingText;
-
-        this.disableButton();
-
-        let formData = null;
-        if (this.storedAttributes.ids.length > 0) {
-            formData = {};
-            this.storedAttributes.ids.forEach(id => {
-                const element = document.getElementById(id);
-                if (element) {
-                    formData[element.name] = element.value;
-                }
-            });
-        }
-
-        try {
-            const response = await fetch(this.storedAttributes.endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: formData ? JSON.stringify(formData) : null,
-            });
-            if (response.ok ) {
-                setTimeout(() => {
-                  if(this.storedAttributes.href){
-                    window.location.href = this.storedAttributes.href;
-                  }
-                  button.textContent = this.storedAttributes.loadingText;
-                }, 1600); // 2-second delay
-            } else {
-                button.textContent = this.storedAttributes.errorText;
-                fatherForm?.reset()
-            }
-        } catch (error) {
-            button.textContent = this.storedAttributes.innerText;
-        } finally {
-            setTimeout(() => {
-                button.textContent = this.storedAttributes.innerText; // Restore initial text
-                button.disabled = false;
-            }, 1600); // Restore button state after 2 seconds
-        }
-    }
-
-    addEventListeners() {
-        this.querySelector('button').addEventListener('click', () => this.handleClick());
-    }
-
-    render() {
-        this.innerHTML = `
-            <button class="${this.storedAttributes.buttonClass}">
-                ${this.storedAttributes.innerText}
-            </button>
-        `;
-    }
-
-    removeAttributes() {
-        this.removeAttribute('endpoint');
-        this.removeAttribute('ids');
-        this.removeAttribute('href');
-        this.removeAttribute('loading');
-        this.removeAttribute('class');
-        this.removeAttribute('error');
-    }
+  removeAttributes(button) {
+    button.removeAttribute('endpoint');
+    button.removeAttribute('ids');
+    button.removeAttribute('href');
+    button.removeAttribute('success');
+    button.removeAttribute('error');
+  }
 }
 
-customElements.define('async-button', AsyncButton);
+customElements.define('post-listener', PostListener);
