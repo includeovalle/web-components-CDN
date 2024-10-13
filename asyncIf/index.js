@@ -1,4 +1,5 @@
-// Fri Oct 11 03:38:00 PM CST 2024
+
+// Sat Oct 12 09:14:21 PM CST 2024
 // This component receibes a localStore, and enpoint  checks for info,
 // if that success will render slot="tag"
 // if that fails checks if slot default is provided to render its content
@@ -14,7 +15,6 @@ class AsyncIf extends HTMLElement {
   constructor() {
     super();
     this.template = document.createElement('template');
-    this.template.innerHTML = `<slot name="tag" style="display: none"></slot>`;
   }
 
   async connectedCallback() {
@@ -76,10 +76,6 @@ class AsyncIf extends HTMLElement {
     const defaultSlotContent = this.querySelector('[slot="default"]');
     if (defaultSlotContent) defaultSlotContent.remove();
     this.appendChild(this.template.content.cloneNode(true));
-
-    if (tagSlotContent) {
-      tagSlotContent.style.display = 'block';
-    }
   }
 }
 
