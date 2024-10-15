@@ -1,5 +1,5 @@
-// Published: Mon Oct  7 12:05:20 PM CST 2024
-
+// Published: Mon Oct 14 07:25:05 PM CST 2024
+//
 // ATTRIBUTES: 
 // endpoint : string; points the endpoint to get data
 // searchAttribute: "/data"; represents the attribute we are getting from endpoint
@@ -65,7 +65,7 @@ class AsyncTable extends HTMLElement {
     let data = null;
 
     // Wait for 200ms before checking for the state in window[storedData]
-    await new Promise(resolve => setTimeout(resolve, 600));
+    // await new Promise(resolve => setTimeout(resolve, 600));
 
     // Check if storedData exists in window
     if (this.storedComponents.storedData && window[this.storedComponents.storedData]) {

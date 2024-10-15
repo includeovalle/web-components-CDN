@@ -1,6 +1,6 @@
 
 // Sat Oct 12 09:14:21 PM CST 2024
-// This component receibes a localStore, and enpoint  checks for info,
+// This component receives a localStore, and endpoint  checks for info,
 // if that success will render slot="tag"
 // if that fails checks if slot default is provided to render its content
 // if nothing comes doesn'nt render anything
