@@ -39,20 +39,27 @@ class OpenDialog extends HTMLElement {
 
   connectedCallback() {
     const button = this.querySelector('#open-btn');
-    const buttonText = this.getAttribute('buttonText') || 'Open Dialog';
-
+    const buttonText = this.getAttribute('buttonText');
     // Get the user-defined classes from the `class` attribute of `open-dialog`
     const userClasses = this.getAttribute('class')?.split(' ') || [];
+    const buttonContent = this.querySelectorAll('[slot="content"]')
 
     // Remove the class from the component itself so it doesn't affect it
     this.removeAttribute('class');
 
-    // Set button text
-    button.textContent = buttonText;
-
     // Apply any custom class names passed through the `class` attribute to the button
     if (userClasses.length) {
       button.classList.add(...userClasses);
+    }
+
+    // Set button content based on buttonText or existing child nodes
+    if (buttonText) {
+      button.textContent = buttonText;
+    } else {
+      // Move existing child nodes to the button if no buttonText is provided
+      buttonContent.forEach(slot =>{
+        button.appendChild(slot)
+       })
     }
 
     button.addEventListener('click', () => this.openDialog());
@@ -114,7 +121,7 @@ class OpenDialog extends HTMLElement {
         const fieldWrapper = document.createElement('label');
 
         // Use the normalized attribute name for both label and input name
-        const displayAttr = normalizedAttr.replace(/_/g, ' '); // For human-readable label
+        const displayAttr = normalizedAttr.replace(/_/g, ' ');
         if (value === 'true' || value === 'false') {
           const isChecked = value === 'true';
           fieldWrapper.innerHTML = `
