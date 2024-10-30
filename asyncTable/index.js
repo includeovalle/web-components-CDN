@@ -12,7 +12,6 @@
 /* FUCTIONALITIES:
   *
   * Sort when clicked on headers
-  * edit record when editButtonText, cancelButtonText and deleteButtonText are passed.
   * if storedData is passed this will fetch from custom Proxy state
   * if storedData is NOT passed this will fetch from localhost/api API
   * fallback to slot name="tag" if anything goes wrong
@@ -98,13 +97,12 @@ class AsyncTable extends HTMLElement {
     // Proceed to store rows and hidden columns after obtaining data
     this.rows = data;
     this.hiddenColumns = this.getHiddenColumns(this.storedComponents.hideFromView);
-
+    if (document.readyState === 'loading') {
+      await new Promise((resolve) => document.addEventListener('DOMContentLoaded', resolve));
+    }
     // Render the table
     this.renderTable({
       className: this.storedComponents.className,
-      deleteButtonText: this.storedComponents.deleteButtonText,
-      editButtonText: this.storedComponents.editButtonText,
-      cancelButtonText: this.storedComponents.cancelButtonText
     });
   }
 
