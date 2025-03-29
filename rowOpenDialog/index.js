@@ -1,5 +1,5 @@
 /* Tue Oct 15 04:24:18 PM CST 2024
- * Sat Mar 29 02:04:26 PM CST 2025
+ * Sat Mar 29 02:14:57 PM CST 2025
  *
  * FUNCTIONALITIES:
  * this web component creates a button
@@ -13,12 +13,13 @@
  * class: strings user custom classes
  * closeButton: string; is a custom user data-styled-button for close the dialog
  * elegant: string; if "true", chooses show() or showModal() depending on screen size
+ * type: string; if set to "tooltip", always use dialog.show()
  *
  * EXAMPLES:
  * using the row search function to get searchAttributes
  *          <open-dialog closeButton="data-edit-close" class="cta font-small" openDialog="data-edit" searchAttributes='["equipo"]' buttonText="Editar"></open-dialog>
  * NOT passing params only open/close modal
- *          <open-dialog type="tooltip" elegant="true" closeButton="data-invite-users-close" class="cta font-small" openDialog="data-invite-users" buttonText="Invitar a este equipo"></open-dialog>
+ *          <open-dialog closeButton="data-invite-users-close" class="cta font-small" openDialog="data-invite-users" buttonText="Invitar a este equipo"></open-dialog>
  *
  */
 
@@ -79,6 +80,7 @@ class OpenDialog extends HTMLElement {
     const openDialogAttr = this.getAttribute('openDialog');
     const closeButtonAttr = this.getAttribute('closeButton');
     const isElegant = this.getAttribute('elegant') === 'true';
+    const isTooltip = this.getAttribute('type') === 'tooltip';
 
     let searchAttributes;
 
@@ -106,7 +108,9 @@ class OpenDialog extends HTMLElement {
 
     // If no searchAttributes are passed, open the dialog immediately
     if (!searchAttributes.length) {
-      if (isElegant) {
+      if (isTooltip) {
+        dialog.show();
+      } else if (isElegant) {
         this.elegant(dialog);
       } else {
         dialog.showModal();
@@ -162,8 +166,10 @@ class OpenDialog extends HTMLElement {
       }
     });
 
-    // Show dialog based on elegant or default behavior
-    if (isElegant) {
+    // Show dialog based on priority: tooltip > elegant > default
+    if (isTooltip) {
+      dialog.show();
+    } else if (isElegant) {
       this.elegant(dialog);
     } else {
       dialog.showModal();
