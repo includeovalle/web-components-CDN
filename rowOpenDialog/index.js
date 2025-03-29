@@ -1,4 +1,5 @@
 /* Tue Oct 15 04:24:18 PM CST 2024
+ * Sat Mar 29 02:04:26 PM CST 2025
  *
  * FUNCTIONALITIES:
  * this web component creates a button
@@ -11,12 +12,13 @@
  * buttonText: string; The inner text of the button
  * class: strings user custom classes
  * closeButton: string; is a custom user data-styled-button for close the dialog
+ * elegant: string; if "true", chooses show() or showModal() depending on screen size
  *
  * EXAMPLES:
  * using the row search function to get searchAttributes
  *          <open-dialog closeButton="data-edit-close" class="cta font-small" openDialog="data-edit" searchAttributes='["equipo"]' buttonText="Editar"></open-dialog>
  * NOT passing params only open/close modal
-            <open-dialog closeButton="data-invite-users-close" class="cta font-small" openDialog="data-invite-users" buttonText="Invitar a este equipo"></open-dialog>
+ *          <open-dialog type="tooltip" elegant="true" closeButton="data-invite-users-close" class="cta font-small" openDialog="data-invite-users" buttonText="Invitar a este equipo"></open-dialog>
  *
  */
 
@@ -30,9 +32,7 @@ class OpenDialog extends HTMLElement {
     // Only attach the button if it's not already present
     if (!this.querySelector('#open-btn')) {
       const template = document.createElement('template');
-      template.innerHTML = `
-        <button id="open-btn"></button>
-    `;
+      template.innerHTML = `<button id="open-btn"></button>`;
       this.appendChild(template.content.cloneNode(true));
     }
   }
@@ -42,7 +42,7 @@ class OpenDialog extends HTMLElement {
     const buttonText = this.getAttribute('buttonText');
     // Get the user-defined classes from the `class` attribute of `open-dialog`
     const userClasses = this.getAttribute('class')?.split(' ') || [];
-    const buttonContent = this.querySelectorAll('[slot="content"]')
+    const buttonContent = this.querySelectorAll('[slot="content"]');
 
     // Remove the class from the component itself so it doesn't affect it
     this.removeAttribute('class');
@@ -57,17 +57,29 @@ class OpenDialog extends HTMLElement {
       button.textContent = buttonText;
     } else {
       // Move existing child nodes to the button if no buttonText is provided
-      buttonContent.forEach(slot =>{
-        button.appendChild(slot)
-       })
+      buttonContent.forEach(slot => {
+        button.appendChild(slot);
+      });
     }
 
     button.addEventListener('click', () => this.openDialog());
   }
 
+  // Elegant logic to choose between show() and showModal() based on window size
+  elegant(dialog) {
+    const windowSize = window.innerWidth;
+    if (windowSize < 768) {
+      dialog.showModal();
+    } else {
+      dialog.show();
+    }
+  }
+
   openDialog() {
     const openDialogAttr = this.getAttribute('openDialog');
     const closeButtonAttr = this.getAttribute('closeButton');
+    const isElegant = this.getAttribute('elegant') === 'true';
+
     let searchAttributes;
 
     try {
@@ -92,8 +104,13 @@ class OpenDialog extends HTMLElement {
       }
     }
 
+    // If no searchAttributes are passed, open the dialog immediately
     if (!searchAttributes.length) {
-      dialog.showModal();
+      if (isElegant) {
+        this.elegant(dialog);
+      } else {
+        dialog.showModal();
+      }
       return;
     }
 
@@ -125,26 +142,32 @@ class OpenDialog extends HTMLElement {
         if (value === 'true' || value === 'false') {
           const isChecked = value === 'true';
           fieldWrapper.innerHTML = `
-          ${displayAttr}: 
-          <input type="checkbox" id="${normalizedAttr}" name="${normalizedAttr}" ${isChecked ? 'checked' : ''} value="${isChecked}">
-        `;
+            ${displayAttr}: 
+            <input type="checkbox" id="${normalizedAttr}" name="${normalizedAttr}" ${isChecked ? 'checked' : ''} value="${isChecked}">
+          `;
           const checkbox = fieldWrapper.querySelector('input[type="checkbox"]');
           checkbox.addEventListener('change', () => {
             checkbox.value = checkbox.checked;
           });
         } else {
           fieldWrapper.innerHTML = `
-          ${displayAttr}: 
-          <input type="text" id=${normalizedAttr} name="${normalizedAttr}" value="${value}">
-        `;
+            ${displayAttr}: 
+            <input type="text" id=${normalizedAttr} name="${normalizedAttr}" value="${value}">
+          `;
         }
+
         editFieldsContainer.appendChild(fieldWrapper);
       } else {
         console.warn(`Attribute "${attr}" not found in table headers.`);
       }
     });
 
-    dialog.showModal();
+    // Show dialog based on elegant or default behavior
+    if (isElegant) {
+      this.elegant(dialog);
+    } else {
+      dialog.showModal();
+    }
   }
 
   closeDialogFunction(element) {
