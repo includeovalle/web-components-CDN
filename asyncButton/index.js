@@ -6,6 +6,11 @@
 // <post-listener endpoints='["/api/teams/accept", "/api/teams/control", "endpoint3...",]'></post-listener>
 // so this webcomponent will search for buttons containing attribute 'endpoint'
 // then will attach the post functionalities
+//@params:
+// success
+// error
+// ids
+// href
 
 class PostListener extends HTMLElement {
   constructor() {
