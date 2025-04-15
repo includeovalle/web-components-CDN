@@ -58,20 +58,22 @@ class PostListener extends HTMLElement {
 
   async handleButtonClick(button, endpoint, storedAttributes) {
     if (button.requestInProgress) return;
+
+    const form = button.closest('form');
+
     button.requestInProgress = true;
 
     this.disableButton(button);
 
     let formData = {};
     storedAttributes.ids.forEach(id => {
-      const inputElement = document.getElementById(id);
+      const inputElement = form.getElementById(id);
       if (inputElement) {
         formData[inputElement.id] = inputElement.value;
       }
     });
 
     // Get the closest form and check validity before making the request
-    const form = button.closest('form');
     if (form && !form.checkValidity()) {
       form.reportValidity(); // This will trigger the native HTML validation UI
       button.requestInProgress = false;
