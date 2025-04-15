@@ -11,6 +11,15 @@
 // error
 // ids
 // href
+// --------USAGE-----------
+// <button 
+// class="cta" 
+// success=" Información Validada ✅" 
+// ids='["password", "username"]' 
+// endpoint="/login"
+//   href="/vision-general/" error="No se pudo iniciar session ❌">
+//   Continuar</button>
+//:
 
 class PostListener extends HTMLElement {
   constructor() {
