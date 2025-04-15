@@ -1,6 +1,6 @@
 // BUTTON overhaul 
 // Mon Oct 21 11:01:29 AM CST 2024
-// Mon Apr 14 08:20:29 PM CST 2025
+// Mon Apr 14 08:56:42 PM CST 2025
 // 
 // instead of previous behavior which was to insert web component each time we need a post button
 // NOW: we register into this web-component the endpoints we are going to open on the page
@@ -59,22 +59,20 @@ class PostListener extends HTMLElement {
 
   async handleButtonClick(button, endpoint, storedAttributes) {
     if (button.requestInProgress) return;
-
-    const form = button.closest('form');
-
     button.requestInProgress = true;
 
     this.disableButton(button);
 
     let formData = {};
     storedAttributes.ids.forEach(id => {
-      const inputElement = form.getElementById(id);
+      const inputElement = document.getElementById(id);
       if (inputElement) {
         formData[inputElement.id] = inputElement.value;
       }
     });
 
     // Get the closest form and check validity before making the request
+    const form = button.closest('form');
     if (form && !form.checkValidity()) {
       form.reportValidity(); // This will trigger the native HTML validation UI
       button.requestInProgress = false;
