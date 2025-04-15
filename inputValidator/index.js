@@ -82,27 +82,51 @@ class ValidationComponent extends HTMLElement {
   }
 
   validateInput() {
-    if (!this.inputElement) {
-      return [];
-    }
+    if (!this.inputElement) return [];
 
     const value = this.inputElement.value;
-    const patterns = this.pattern.split(',').map(p => p.trim());
     const results = [];
 
-    const patternDict = {
-      '[a-z]{2}': { message: 'de minuscula', regex: /[a-z]/g, requiredCount: 2 },
-      '[A-Z]{2}': { message: 'de mayuscula', regex: /[A-Z]/g, requiredCount: 2 },
-      '[0-9]{2}': { message: 'de numero', regex: /[0-9]/g, requiredCount: 2 },
+    const fullPatternMap = {
+      lowercase: {
+        message: 'de minúscula',
+        regex: /[a-z]/g,
+      },
+      uppercase: {
+        message: 'de mayúscula',
+        regex: /[A-Z]/g,
+      },
+      number: {
+        message: 'de número',
+        regex: /[0-9]/g,
+      },
+      special: {
+        message: 'caracter especial',
+        regex: /[^a-zA-Z0-9]/g,
+      },
     };
 
-    for (const pattern of patterns) {
-      const { message, regex, requiredCount } = patternDict[pattern] || {};
-      if (message && regex) {
+    const patternString = this.pattern || '';
+    const patternEntries = patternString
+      .split(',')
+      .map(p => p.trim())
+      .map(p => {
+        const [key, val] = p.split('=');
+        return [key.trim(), Number(val.replace(/['"]/g, ''))];
+      });
+
+    for (const [key, requiredCount] of patternEntries) {
+      const entry = fullPatternMap[key];
+      if (entry) {
+        const { message, regex } = entry;
         const matches = value.match(regex) || [];
         const matchCount = matches.length;
         const missingCount = Math.max(requiredCount - matchCount, 0);
-        results.push({ message, isMatched: missingCount === 0, missingCount });
+        results.push({
+          message,
+          isMatched: missingCount === 0,
+          missingCount,
+        });
       }
     }
 
@@ -118,6 +142,9 @@ class ValidationComponent extends HTMLElement {
     const results = this.validateInput();
     let listElement = this.shadowRoot.querySelector(this.type);
 
+    if (this.className) {
+      listElement.className = this.className;
+    }
     if (!listElement) {
       listElement = document.createElement(this.type);
       this.shadowRoot.appendChild(listElement);
@@ -125,6 +152,7 @@ class ValidationComponent extends HTMLElement {
 
     // Clear previous content
     listElement.innerHTML = '';
+    listElement.className = this.className || '';
 
     const allMatched = results.every(result => result.isMatched);
 
