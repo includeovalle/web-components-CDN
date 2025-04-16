@@ -1,3 +1,22 @@
+// Tue Apr 15 07:51:45 PM CST 2025
+//---------USAGE----------
+//  <validation-component
+//      class="this can also receive classes"
+//      checkid="reg_password"
+//      pattern="lowercase='2', uppercase='2', number='2', special='1'"
+//      >
+//  </validation-component>
+//  <style>
+// validation-component::part(unmatched) {
+//   font-size: 85%;
+//   font-weight: bold;
+//   color: var(--primary);
+//   letter-spacing: 1px;
+//   margin-top: 2px;
+// } 
+//  </style>
+
+
 class ValidationComponent extends HTMLElement {
   static get observedAttributes() {
     return ['type', 'checkid', 'pattern'];
@@ -41,7 +60,8 @@ class ValidationComponent extends HTMLElement {
   }
 
   connectedCallback() {
-    this.inputElement = document.getElementById(this.checkId);
+    let form = this.closest('form');
+    this.inputElement = form.querySelector(`#${this.checkId}`);
     if (this.inputElement) {
       this.inputElement.addEventListener('input', this.handleInput.bind(this));
     }
