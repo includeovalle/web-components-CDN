@@ -1,7 +1,7 @@
 // BUTTON overhaul 
 // Mon Oct 21 11:01:29 AM CST 2024
 // Mon Apr 14 08:56:42 PM CST 2025
-// 
+// Tue Apr 15 07:51:45 PM CST 2025
 // instead of previous behavior which was to insert web component each time we need a post button
 // NOW: we register into this web-component the endpoints we are going to open on the page
 // <post-listener endpoints='["/api/teams/accept", "/api/teams/control", "endpoint3...",]'></post-listener>
@@ -44,6 +44,7 @@ class PostListener extends HTMLElement {
           successText: button.getAttribute('success') || 'Success',
           errorText: button.getAttribute('error') || 'Error',
           ids: JSON.parse(button.getAttribute('ids') || '[]'),
+          names: JSON.parse(button.getAttribute('names') || '[]'),
           href: button.getAttribute('href'),
           originalText: button.textContent.trim()
         };
@@ -63,16 +64,17 @@ class PostListener extends HTMLElement {
 
     this.disableButton(button);
 
+    const form = button.closest('form');
+
     let formData = {};
     storedAttributes.ids.forEach(id => {
-      const inputElement = document.getElementById(id);
+      const inputElement = form.querySelector(`#${id}`);
       if (inputElement) {
         formData[inputElement.id] = inputElement.value;
       }
     });
 
     // Get the closest form and check validity before making the request
-    const form = button.closest('form');
     if (form && !form.checkValidity()) {
       form.reportValidity(); // This will trigger the native HTML validation UI
       button.requestInProgress = false;
