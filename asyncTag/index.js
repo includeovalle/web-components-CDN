@@ -47,9 +47,12 @@ class InjectorGenerator extends HTMLElement {
 
       // Wait for 180ms before checking if data exists in window._data
       await new Promise(resolve => setTimeout(resolve, 180));
+      let storedData = window[_data]?.[endpoint];
 
-      // After 180ms, check if the data exists in window.localStore
-      const storedData = window[_data] ? window[_data][endpoint] : null;
+      if (!storedData) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        storedData = window[_data]?.[endpoint];
+      }
 
       if (storedData) {
         // If the data is available, use it

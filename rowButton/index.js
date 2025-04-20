@@ -98,6 +98,11 @@ class RowPost extends HTMLElement {
     const row = button.closest('tr');
     const table = row?.closest('table');
 
+    if (!table) {
+      console.error('Table not found in the component\'s hierarchy.');
+      return;
+    }
+
     // Normalize headers by trimming whitespace, making lowercase, and replacing spaces with underscores
     const headers = Array.from(table.querySelectorAll('th'))
       .map(th => th.textContent.trim().toLowerCase().replace(/\s+/g, '_'));
