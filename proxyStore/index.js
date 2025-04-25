@@ -1,27 +1,80 @@
+/*
+  * @params:
+  *   endpoints:  Representa un arreglo con los endpoints que va a traer el componente
+  *   objectName: Representa el nombre del proxy donde se almacenara la informacion obtenida
+  *   cache?: [true] Representa si queremos que el proxy se almacene en el session-storage del navegador.
+  *   Si se almacena crea un utiliza objectName para guardar la informacion permitiendo su persistencia en la ventana.
+  *   Si no se incluye cache="true" hara una llamada al endpoint encada refresco de la pagina, o navegacion dentro de la app
+  *
+    <proxy-store endpoints='["/api/user/info"]' 
+    objectname="nombre_del_proxy"
+    cache="true" 
+    >
+    </proxy-store>
+  */
+
 class ProxyStore extends HTMLElement {
   constructor() {
     super();
-    this.state = {}; // Holds the proxy object
+    this.rawData = {};
     this.proxy = null;
-    this.isProxyInitialized = false; // Flag to check if proxy has been initialized
-    this.objectName = ''; // Store the object name
+    this.isProxyInitialized = false;
+    this.objectName = '';
+    this.useCache = false;
   }
 
   static get observedAttributes() {
-    return ['endpoints', 'objectname'];
+    return ['endpoints', 'objectname', 'cache'];
   }
 
   connectedCallback() {
-    const endpoints = decodeURIComponent(this.getAttribute('endpoints'));
+    const endpoints = decodeURIComponent(this.getAttribute('endpoints') || '');
     this.objectName = this.getAttribute('objectname');
+    this.useCache = this.getAttribute('cache') === 'true';
 
-    if (this.objectName) {
-      this.initializeProxy(this.objectName);
-      // Dynamically expose the proxy on the window object using the objectName
-      window[this.objectName] = this.proxy; 
-    } else {
+    if (!this.objectName) {
       console.error("[ProxyStore] 'objectname' attribute is missing.");
+      return;
     }
+
+    this.removeAttribute('endpoints');
+
+    console.log(`[ProxyStore] Initializing "${this.objectName}" (cache=${this.useCache})`);
+
+    if (this.useCache) {
+      const sessionData = sessionStorage.getItem(this.objectName);
+      if (sessionData) {
+        try {
+          this.rawData = JSON.parse(sessionData);
+          console.log(`[ProxyStore] Restored from sessionStorage:`, this.rawData);
+        } catch (err) {
+          console.warn(`[ProxyStore] Failed to parse sessionStorage`, err);
+          this.rawData = {};
+        }
+      } else {
+        console.log(`[ProxyStore] No cache found for "${this.objectName}"`);
+        this.rawData = {};
+      }
+    } else {
+      this.rawData = {};
+    }
+
+    this.proxy = new Proxy(this.rawData, {
+      get: (target, prop) => {
+        const value = prop in target ? target[prop] : null;
+        console.log(`[ProxyStore] GET ${String(prop)} =>`, value);
+        return value;
+      },
+      set: (target, prop, value) => {
+        console.log(`[ProxyStore] SET ${String(prop)} =`, value);
+        target[prop] = value;
+        if (this.useCache) this.syncSessionStorage();
+        return true;
+      }
+    });
+
+    window[this.objectName] = this.proxy;
+    this.isProxyInitialized = true;
 
     if (endpoints) {
       try {
@@ -40,37 +93,26 @@ class ProxyStore extends HTMLElement {
     if (name === 'objectname' && oldValue !== newValue) {
       this.updateProxyObjectName(newValue);
     }
-  }
-
-  initializeProxy(objectName) {
-    if (!objectName) {
-      console.error("[ProxyStore] 'objectname' is not valid.");
-      return;
-    }
-
-    // Initialize the state and create a proxy
-    if (!this.state[objectName]) {
-      this.state[objectName] = {}; 
-      this.proxy = new Proxy(this.state[objectName], {
-        get: (target, prop) => {
-          return prop in target ? target[prop] : null;
-        },
-        set: (target, prop, value) => {
-          target[prop] = value;
-          return true;
-        }
-      });
-      this.isProxyInitialized = true;  // Mark proxy as initialized
-    } else {
-      // console.log(`[ProxyStore] Proxy for '${objectName}' already initialized.`);
+    if (name === 'cache') {
+      this.useCache = newValue === 'true';
+      console.log(`[ProxyStore] Cache toggled: ${this.useCache}`);
     }
   }
 
   updateProxyObjectName(newObjectName) {
     this.objectName = newObjectName;
-    this.initializeProxy(newObjectName);
-    // Update the exposed proxy in the window object
-    window[newObjectName] = this.proxy; 
+    const sessionData = this.useCache ? sessionStorage.getItem(newObjectName) : null;
+    this.rawData = sessionData ? JSON.parse(sessionData) : {};
+    this.proxy = new Proxy(this.rawData, {
+      get: (target, prop) => (prop in target ? target[prop] : null),
+      set: (target, prop, value) => {
+        target[prop] = value;
+        if (this.useCache) this.syncSessionStorage();
+        return true;
+      }
+    });
+    this.isProxyInitialized = true;
+    window[newObjectName] = this.proxy;
   }
 
   fetchAndStoreEndpoints(endpointArray) {
@@ -79,7 +121,6 @@ class ProxyStore extends HTMLElement {
       return;
     }
 
-    // Make sure proxy is initialized before proceeding
     if (!this.isProxyInitialized) {
       console.warn(`[ProxyStore] Proxy is not initialized yet. Fetch postponed.`);
       return;
@@ -87,34 +128,28 @@ class ProxyStore extends HTMLElement {
 
     endpointArray.forEach(endpoint => {
       if (!endpoint || typeof endpoint !== 'string') {
-        console.error(`[ProxyStore] Invalid endpoint value:`, endpoint);
+        console.error(`[ProxyStore] Invalid endpoint:`, endpoint);
         return;
       }
 
-      // Check if the data is already cached in the Proxy
-      if (this.proxy[endpoint]) {
-        // console.log(`[ProxyStore] Using cached data for: ${endpoint}`);
-        return; // Skip fetch if data exists in Proxy
+      if (this.rawData[endpoint]) {
+        console.log(`[ProxyStore] Cache hit for "${endpoint}"`);
+        return;
       }
 
+      console.log(`[ProxyStore] Fetching "${endpoint}"`);
       fetch(endpoint)
         .then(response => {
           if (!response.ok) {
-            throw new Error(`[ProxyStore] Error fetching from ${endpoint}: ${response.statusText}`);
+            throw new Error(`[ProxyStore] Error fetching "${endpoint}": ${response.statusText}`);
           }
           return response.json();
         })
         .then(data => {
-          // console.log(`${this.objectName} Storing data from ${endpoint}`);
-          if (this.proxy) {
-            this.proxy[endpoint] = data;
-            // console.log(`[ProxyStore] Retrieved data for ${endpoint}:`, data); // Log the retrieved data
-          } else {
-            console.error(`[ProxyStore] Proxy is not initialized.`);
-          }
+          this.proxy[endpoint] = data;
         })
         .catch(err => {
-          console.error(`[ProxyStore] Error fetching from ${endpoint}:`, err);
+          console.error(`[ProxyStore] Fetch error for "${endpoint}":`, err);
         });
     });
   }
@@ -122,10 +157,19 @@ class ProxyStore extends HTMLElement {
   handleEndpointsChange(newValue) {
     try {
       const newEndpoints = JSON.parse(newValue);
-      // console.log(`[ProxyStore] New endpoints received:`, newEndpoints);
       this.fetchAndStoreEndpoints(newEndpoints);
     } catch (err) {
       console.error(`[ProxyStore] Invalid endpoints format`, err);
+    }
+  }
+
+  syncSessionStorage() {
+    try {
+      const serialized = JSON.stringify(this.rawData);
+      sessionStorage.setItem(this.objectName, serialized);
+      console.log(`[ProxyStore] sessionStorage updated for "${this.objectName}"`);
+    } catch (err) {
+      console.warn(`[ProxyStore] Could not sync sessionStorage`, err);
     }
   }
 }
