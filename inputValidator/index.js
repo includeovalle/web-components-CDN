@@ -29,12 +29,12 @@ class ValidationComponent extends HTMLElement {
     const stylesheet = new CSSStyleSheet();
     stylesheet.replaceSync(`
       @-webkit-keyframes fadeOut {
-        0% {opacity: 1;}
-        100% {opacity: 0;}
+        0% { opacity: 1; }
+        100% { opacity: 0; }
       }
       @keyframes fadeOut {
-        0% {opacity: 1;}
-        100% {opacity: 0; display: none;}
+        0% { opacity: 1; }
+        100% { opacity: 0; display: none; }
       }
       :host {
         display: none; /* Initially hidden */
@@ -46,24 +46,28 @@ class ValidationComponent extends HTMLElement {
         display: block;
       }
       .matched {
-        text-decoration: line-through; /* Strikethrough for matched patterns */
+        text-decoration: line-through;
         animation-name: fadeOut;
         animation-duration: 1s;
         animation-fill-mode: both;
       }
       .unmatched {
-        color: deeppink; /* Optional: color for unmatched items */
+        color: deeppink;
       }
     `);
 
     this.shadowRoot.adoptedStyleSheets = [stylesheet];
+
+    this.listElement = null; // 🛠️ Cache the list element
   }
 
   connectedCallback() {
-    let form = this.closest('form');
-    this.inputElement = form.querySelector(`#${this.checkId}`);
-    if (this.inputElement) {
-      this.inputElement.addEventListener('input', this.handleInput.bind(this));
+    const form = this.closest('form');
+    if (form && this.checkId) {
+      this.inputElement = form.querySelector(`#${this.checkId}`);
+      if (this.inputElement) {
+        this.inputElement.addEventListener('input', this.handleInput.bind(this));
+      }
     }
   }
 
@@ -86,7 +90,7 @@ class ValidationComponent extends HTMLElement {
   }
 
   get type() {
-    return this.getAttribute('type') || 'ul'; // Default type to 'ul'
+    return this.getAttribute('type') || 'ul';
   }
 
   get checkId() {
@@ -160,31 +164,32 @@ class ValidationComponent extends HTMLElement {
     }
 
     const results = this.validateInput();
-    let listElement = this.shadowRoot.querySelector(this.type);
 
-    if (this.className) {
-      listElement.className = this.className;
-    }
-    if (!listElement) {
-      listElement = document.createElement(this.type);
-      this.shadowRoot.appendChild(listElement);
+    // ⚡ Only create listElement once
+    if (!this.listElement) {
+      this.listElement = document.createElement(this.type);
+      this.listElement.setAttribute('part', 'list'); // 🛠️ Add part=list to whole list
+      this.shadowRoot.appendChild(this.listElement);
     }
 
-    // Clear previous content
-    listElement.innerHTML = '';
-    listElement.className = this.className || '';
+    // Reset content
+    this.listElement.innerHTML = '';
+    this.listElement.className = this.className || '';
 
     const allMatched = results.every(result => result.isMatched);
 
     if (this.inputElement.value.trim() === '' || allMatched) {
-      this.style.display = 'none'; // Hide the component if input is empty or all patterns are matched
+      this.style.display = 'none';
     } else {
-      this.style.display = 'block'; // Show the component if there are unmet requirements
+      this.style.display = 'block';
+
       results.forEach(({ message, isMatched, missingCount }) => {
         const listItem = document.createElement('li');
         listItem.textContent = `Falta: ${missingCount} ${message}`;
-        listItem.className = isMatched ? 'matched' : 'unmatched';
-        listElement.appendChild(listItem);
+        const state = isMatched ? 'matched' : 'unmatched';
+        listItem.className = state;
+        listItem.setAttribute('part', state); // 🛠️ Each item exposes part
+        this.listElement.appendChild(listItem);
       });
     }
   }
