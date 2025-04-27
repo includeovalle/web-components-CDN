@@ -46,7 +46,7 @@ class ProxyStore extends HTMLElement {
       if (sessionData) {
         try {
           this.rawData = JSON.parse(sessionData);
-          console.log(`[ProxyStore] Restored from sessionStorage:`, this.rawData);
+          console.log(`[ProxyStore] Restored from sessionStorage:`);
         } catch (err) {
           console.warn(`[ProxyStore] Failed to parse sessionStorage`, err);
           this.rawData = {};
@@ -62,7 +62,6 @@ class ProxyStore extends HTMLElement {
     this.proxy = new Proxy(this.rawData, {
       get: (target, prop) => {
         const value = prop in target ? target[prop] : null;
-        console.log(`[ProxyStore] GET ${String(prop)} =>`, value);
         return value;
       },
       set: (target, prop, value) => {
@@ -95,7 +94,6 @@ class ProxyStore extends HTMLElement {
     }
     if (name === 'cache') {
       this.useCache = newValue === 'true';
-      console.log(`[ProxyStore] Cache toggled: ${this.useCache}`);
     }
   }
 
