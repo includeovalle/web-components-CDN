@@ -75,6 +75,10 @@ class InjectorGenerator extends HTMLElement {
   }
 
   async connectedCallback() {
+if (this._initialized) {
+  console.log('[async-tag] ⚠️ Already initialized — skipping duplicate connectedCallback');
+  return;
+}
     const endpoint = this.getAttribute('endpoint');
     const attribute = this.getAttribute('searchAttribute');
     const _data = this.getAttribute('storedData');
