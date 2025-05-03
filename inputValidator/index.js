@@ -7,6 +7,7 @@
 //      >
 //  </validation-component>
 //  <style>
+// validation-component::part(matched) {}
 // validation-component::part(unmatched) {
 //   font-size: 85%;
 //   font-weight: bold;
