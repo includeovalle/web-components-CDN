@@ -14,6 +14,8 @@ USO:
 *
 *
 * NOTA: adicional permite al usuario final el control de los estilos del spiner utilizando ::part
+* donde wrapper es el contenedor del spinner
+*
 *   ::part(spinner)
 *   ::part(wrapper)
 *
@@ -26,7 +28,6 @@ USO:
             }
           </style>
 */
-
 
 const wrapper = document.createElement('div');
 wrapper.className = 'wrapper';
@@ -75,10 +76,10 @@ class InjectorGenerator extends HTMLElement {
   }
 
   async connectedCallback() {
-if (this._initialized) {
-  console.log('[async-tag] ⚠️ Already initialized — skipping duplicate connectedCallback');
-  return;
-}
+    if (this._initialized) {
+      console.log('[async-tag] ⚠️ Already initialized — skipping duplicate connectedCallback');
+      return;
+    }
     const endpoint = this.getAttribute('endpoint');
     const attribute = this.getAttribute('searchAttribute');
     const _data = this.getAttribute('storedData');
@@ -102,11 +103,11 @@ if (this._initialized) {
         return;
       }
 
-      await new Promise(resolve => setTimeout(resolve, 180));
+      await new Promise((resolve) => setTimeout(resolve, 180));
       let storedData = window[_data]?.[endpoint];
 
       if (!storedData) {
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 200));
         storedData = window[_data]?.[endpoint];
       }
 
@@ -116,7 +117,8 @@ if (this._initialized) {
         assignedElement.textContent = initialContent || 'default missing endpoint attribute';
 
         const response = await fetch(endpoint);
-        if (!response.ok) throw new Error(`Error fetching from ${endpoint}: ${response.statusText}`);
+        if (!response.ok)
+          throw new Error(`Error fetching from ${endpoint}: ${response.statusText}`);
         const data = await response.json();
 
         window[_data] = { ...(window[_data] || {}), [endpoint]: data };
@@ -132,3 +134,4 @@ if (this._initialized) {
 }
 
 customElements.define('async-tag', InjectorGenerator);
+

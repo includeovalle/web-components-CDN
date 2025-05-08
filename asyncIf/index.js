@@ -1,53 +1,88 @@
+/*
+ *
+Sat Oct 12 09:14:21 PM CST 2024
+Sat May  3 11:56:38 AM CST 2025
+Mié 07 may 2025 18:23:51 CST
 
-// Sat Oct 12 09:14:21 PM CST 2024
-// Sat May  3 11:56:38 AM CST 2025
-//
-// @params
-// searchAttribute: string; represents the attribute we are aiming inside the API
-// endpoint: string; represents the API we we will search for Either endpoint or storedData(window.storeName or sessionStorage)
-// checkValue?: string; represents a concrete value we would expect from that API in order to meet conditions if that fails checks if slot default is provided to render its content if nothing comes doesn'nt render anything
-// storedData?: Represents if this will be calling a cached localStore or if will be making the API request on every render
-//
-// USAGE:
-// <async-if
-// endpoint="/api/teams"
-// storedData="localStore"
-// searchAttribute="teams"
-// >
-//   <h2 slot="tag"> Los equipos a los que perteneces</h2>
-//   <h2> slot="default"> Aun no tienes Equipos</h2>
-// </async-if>
-//
-//
-//<async-if
-//   endpoint="/api/user/info"
-//   storedData="localStore"
-//   searchAttribute="role"
-//   checkValue="docente"
-// >
-//<async-if
-//   endpoint="/api/user/info"
-//   storedData="localStore"
-//   searchAttribute="address.city"
-//   checkValue="Oaxaca"
-// >
-//
-//<async-if
-//   endpoint="/api/user/info"
-//   storedData="localStore"
-//   searchAttribute="teams.length"
-// >
-//
-// NOTE: <styles>: safely exposes spinner for customization using
-// ::part(wrapper)
-// ::part(spinner)
+@params:
+
+searchAttribute: string; represents the attribute we are aiming inside the API
+
+endpoint: string; represents the API we we will search for Either endpoint or sessionStorage(storedData)
+
+checkValue?: string; represents a concrete value we would expect from that API in order to meet conditions if that fails checks if slot default is provided to render its content if nothing comes doesn'nt render anything We added support for multiple values to check, coma separated  e.g. searchAttribute="docente,alumno"
+
+not?: boolean; if true negates the query to its oposite  similar to !
+
+storedData?: Represents if this will be calling a cached localStore or if will be making the API request on every render
+
+
+
+
+USAGE:
+<async-if
+endpoint="/api/teams"
+storedData="localStore"
+searchAttribute="teams"
+>
+  <h2 slot="tag"> Los equipos a los que perteneces</h2>
+  <h2> slot="default"> Aun no tienes Equipos</h2>
+</async-if>
+
+
+<async-if
+  endpoint="/api/user/info"
+  storedData="localStore"
+  searchAttribute="role"
+  checkValue="docente"
+>
+<async-if
+  endpoint="/api/user/info"
+  storedData="localStore"
+  searchAttribute="address.city"
+  checkValue="Oaxaca"
+>
+
+<async-if
+  endpoint="/api/user/info"
+  storedData="localStore"
+  searchAttribute="teams.length"
+>
+<async-if
+  endpoint="/api/user/info"
+  searchAttribute="role"
+  checkValue="docente,admin"
+  storedData="localStore"
+>
+
+
+<async-if
+        endpoint="/api/user/info"
+        searchAttribute="role"
+        checkValue="alumno"
+        not="true"
+        storedData="localStore"
+      >
+        <div slot="tag">para docentes
+           <p>Esto se muestra para todos menos para alumno</p>
+        </div>
+</async-if>
+
+
+
+NOTE: <styles>: safely exposes spinner for customization using
+::part(wrapper)
+::part(spinner)
+ *
+ *
+ *
+*/
 
 class AsyncIf extends HTMLElement {
   constructor() {
     super();
 
-    // Apply early hiding to avoid flashing
-    this.querySelectorAll('[slot]').forEach((el) => el.classList.remove('shown'));
+    this.querySelectorAll('[slot]').forEach(el => el.classList.remove('shown'));
 
     const style = new CSSStyleSheet();
     style.replaceSync(`
@@ -55,11 +90,7 @@ class AsyncIf extends HTMLElement {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
-
-      .wrapper {
-        text-align: center;
-      }
-
+      .wrapper { text-align: center; }
       .spinner {
         width: 1.5rem;
         height: 1.5rem;
@@ -69,18 +100,9 @@ class AsyncIf extends HTMLElement {
         animation: spin 1s linear infinite;
         margin: 1rem auto;
       }
-
-      .hidden {
-        display: none !important;
-      }
-
-      ::slotted(*) {
-        display: none;
-      }
-
-      .slots-ready ::slotted(.shown) {
-        display: block;
-      }
+      .hidden { display: none !important; }
+      ::slotted(*) { display: none; }
+      .slots-ready ::slotted(.shown) { display: block; }
     `);
 
     this.attachShadow({ mode: 'open' });
@@ -107,8 +129,9 @@ class AsyncIf extends HTMLElement {
   async connectedCallback() {
     const endpoint = this.getAttribute('endpoint');
     const attrPath = this.getAttribute('searchAttribute');
-    const checkValue = this.getAttribute('checkValue');
+    const checkValueRaw = this.getAttribute('checkValue');
     const storeName = this.getAttribute('storedData');
+    const negate = this.getAttribute('not') === 'true';
 
     this.removeAttribute('endpoint');
     this.removeAttribute('searchAttribute');
@@ -119,7 +142,7 @@ class AsyncIf extends HTMLElement {
       return;
     }
 
-    await new Promise((res) => setTimeout(res, 100)); // slight delay to stabilize
+    await new Promise((res) => setTimeout(res, 100));
 
     try {
       let store = JSON.parse(sessionStorage.getItem(storeName) || '{}');
@@ -134,11 +157,20 @@ class AsyncIf extends HTMLElement {
       }
 
       const value = this.getDeepValue(data, attrPath);
-      const valid = checkValue != null ? value == checkValue : Boolean(value);
+      let valid;
+
+      if (checkValueRaw != null) {
+        const values = checkValueRaw.split(',').map(v => v.trim());
+        valid = values.includes(String(value));
+      } else {
+        valid = Boolean(value);
+      }
+
+      if (negate) valid = !valid;
 
       this.spinner.classList.add('hidden');
 
-      this.querySelectorAll('[slot]').forEach((el) => {
+      this.querySelectorAll('[slot]').forEach(el => {
         el.classList.remove('shown');
         if (valid && el.slot === 'tag') el.classList.add('shown');
         if (!valid && el.slot === 'default') el.classList.add('shown');
@@ -148,7 +180,7 @@ class AsyncIf extends HTMLElement {
     } catch (err) {
       console.error('[async-if] ❌ Error loading or parsing data:', err);
       this.spinner.classList.add('hidden');
-      this.querySelectorAll('[slot="default"]').forEach((el) => el.classList.add('shown'));
+      this.querySelectorAll('[slot="default"]').forEach(el => el.classList.add('shown'));
     }
   }
 
@@ -158,3 +190,4 @@ class AsyncIf extends HTMLElement {
 }
 
 customElements.define('async-if', AsyncIf);
+

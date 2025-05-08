@@ -52,7 +52,7 @@ class ProxyStore extends HTMLElement {
           this.rawData = {};
         }
       } else {
-        console.log(`[ProxyStore] No cache found for "${this.objectName}"`);
+        console.log(`[ProxyStore] No cache found`);
         this.rawData = {};
       }
     } else {
@@ -65,7 +65,6 @@ class ProxyStore extends HTMLElement {
         return value;
       },
       set: (target, prop, value) => {
-        console.log(`[ProxyStore] SET ${String(prop)} =`, value);
         target[prop] = value;
         if (this.useCache) this.syncSessionStorage();
         return true;
@@ -135,7 +134,7 @@ class ProxyStore extends HTMLElement {
         return;
       }
 
-      console.log(`[ProxyStore] Fetching "${endpoint}"`);
+      console.log(`[ProxyStore] Fetching`);
       fetch(endpoint)
         .then(response => {
           if (!response.ok) {
