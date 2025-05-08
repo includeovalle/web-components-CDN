@@ -142,7 +142,7 @@ class AsyncIf extends HTMLElement {
       return;
     }
 
-    await new Promise((res) => setTimeout(res, 100));
+    await new Promise(res => setTimeout(res, 100));
 
     try {
       let store = JSON.parse(sessionStorage.getItem(storeName) || '{}');
@@ -170,17 +170,27 @@ class AsyncIf extends HTMLElement {
 
       this.spinner.classList.add('hidden');
 
-      this.querySelectorAll('[slot]').forEach(el => {
-        el.classList.remove('shown');
-        if (valid && el.slot === 'tag') el.classList.add('shown');
-        if (!valid && el.slot === 'default') el.classList.add('shown');
-      });
+      const tagElements = Array.from(this.querySelectorAll('[slot="tag"]'));
+      const defaultElements = Array.from(this.querySelectorAll('[slot="default"]'));
+
+      if (valid) {
+        defaultElements.forEach(el => el.remove());
+        tagElements.forEach(el => el.classList.add('shown'));
+      } else {
+        tagElements.forEach(el => el.remove());
+        defaultElements.forEach(el => el.classList.add('shown'));
+      }
 
       this.wrapper.classList.add('slots-ready');
     } catch (err) {
       console.error('[async-if] ❌ Error loading or parsing data:', err);
       this.spinner.classList.add('hidden');
-      this.querySelectorAll('[slot="default"]').forEach(el => el.classList.add('shown'));
+
+      const tagElements = Array.from(this.querySelectorAll('[slot="tag"]'));
+      tagElements.forEach(el => el.remove());
+
+      const defaultElements = Array.from(this.querySelectorAll('[slot="default"]'));
+      defaultElements.forEach(el => el.classList.add('shown'));
     }
   }
 
