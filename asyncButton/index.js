@@ -2,6 +2,7 @@
 // Mon Oct 21 11:01:29 AM CST 2024
 // Mon Apr 14 08:56:42 PM CST 2025
 // Tue Apr 15 07:51:45 PM CST 2025
+// Mié 07 may 2025 19:05:57 CST
 // instead of previous behavior which was to insert web component each time we need a post button
 // NOW: we register into this web-component the endpoints we are going to open on the page
 // <post-listener endpoints='["/api/teams/accept", "/api/teams/control", "endpoint3...",]'></post-listener>
@@ -11,7 +12,8 @@
 // success
 // error
 // ids
-// href
+// href: string
+// delay?: number
 // --------USAGE-----------
 // <button 
 // class="cta" 
@@ -37,9 +39,12 @@ class PostListener extends HTMLElement {
   searchDomAndAttachListeners() {
     const elements = document.querySelectorAll('[endpoint]');
     elements.forEach(button => {
-      const endpoint = button.getAttribute('endpoint').trim();
-      if (this.endpoints.map(e => e.trim()).includes(endpoint) && button.tagName.toLowerCase() === 'button') {
-        // Store attributes before removing them
+      const endpoint = button.getAttribute('endpoint')?.trim();
+      if (
+        endpoint &&
+        this.endpoints.map(e => e.trim()).includes(endpoint) &&
+        button.tagName.toLowerCase() === 'button'
+      ) {
         const storedAttributes = {
           successText: button.getAttribute('success') || 'Success',
           errorText: button.getAttribute('error') || 'Error',
@@ -49,11 +54,10 @@ class PostListener extends HTMLElement {
           originalText: button.textContent.trim()
         };
 
-        // Remove attributes to keep button clean in the inspector
         this.removeAttributes(button);
-
-        // Add event listener to the button
-        button.addEventListener('click', () => this.handleButtonClick(button, endpoint, storedAttributes));
+        button.addEventListener('click', () =>
+          this.handleButtonClick(button, endpoint, storedAttributes)
+        );
       }
     });
   }
@@ -61,26 +65,27 @@ class PostListener extends HTMLElement {
   async handleButtonClick(button, endpoint, storedAttributes) {
     if (button.requestInProgress) return;
     button.requestInProgress = true;
-
     this.disableButton(button);
 
     const form = button.closest('form');
+    const formData = {};
 
-    let formData = {};
     storedAttributes.ids.forEach(id => {
-      const inputElement = form.querySelector(`#${id}`);
-      if (inputElement) {
-        formData[inputElement.id] = inputElement.value;
+      const input = form?.querySelector(`#${id}`);
+      if (input) {
+        formData[input.id] = input.value;
       }
     });
 
-    // Get the closest form and check validity before making the request
     if (form && !form.checkValidity()) {
-      form.reportValidity(); // This will trigger the native HTML validation UI
+      form.reportValidity();
       button.requestInProgress = false;
       button.disabled = false;
       return;
     }
+
+    const delay = parseInt(button.getAttribute('delay'), 10);
+    const useDelay = !isNaN(delay);
 
     try {
       const response = await fetch(endpoint, {
@@ -91,26 +96,36 @@ class PostListener extends HTMLElement {
 
       if (response.ok) {
         button.textContent = storedAttributes.successText;
-        setTimeout(() => {
-          if (storedAttributes.href) {
-            window.location.href = storedAttributes.href;
-          } else {
-            button.closest('form')?.reset();
-          }
-        }, 1600);
+        if (useDelay) {
+          setTimeout(() => {
+            storedAttributes.href
+              ? (window.location.href = storedAttributes.href)
+              : form?.reset();
+          }, delay);
+        } else {
+          storedAttributes.href
+            ? (window.location.href = storedAttributes.href)
+            : form?.reset();
+        }
       } else {
         button.textContent = storedAttributes.errorText;
-        button.closest('form')?.reset();
+        form?.reset();
       }
-    } catch (error) {
-      console.error("Error occurred during fetch:", error);
+    } catch (err) {
+      console.error("Fetch failed:", err);
       button.textContent = storedAttributes.errorText;
     } finally {
-      setTimeout(() => {
+      if (useDelay) {
+        setTimeout(() => {
+          button.textContent = storedAttributes.originalText;
+          button.disabled = false;
+          button.requestInProgress = false;
+        }, delay);
+      } else {
         button.textContent = storedAttributes.originalText;
         button.disabled = false;
         button.requestInProgress = false;
-      }, 1600);
+      }
     }
   }
 
@@ -128,3 +143,4 @@ class PostListener extends HTMLElement {
 }
 
 customElements.define('post-listener', PostListener);
+
