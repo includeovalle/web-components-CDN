@@ -3,8 +3,9 @@
 // Mon Apr 14 08:56:42 PM CST 2025
 // Tue Apr 15 07:51:45 PM CST 2025
 // Mié 07 may 2025 19:05:57 CST
-// instead of previous behavior which was to insert web component each time we need a post button
-// NOW: we register into this web-component the endpoints we are going to open on the page
+// Dom 18 may 2025 20:32:35 CST
+//
+// We register into this web-component the endpoints we are going to open on the page
 // <post-listener endpoints='["/api/teams/accept", "/api/teams/control", "endpoint3...",]'></post-listener>
 // so this webcomponent will search for buttons containing attribute 'endpoint'
 // then will attach the post functionalities
@@ -14,12 +15,14 @@
 // ids
 // href: string
 // delay?: number
+// closest?: string 
 // --------USAGE-----------
 // <button 
 // class="cta" 
 // success=" Información Validada ✅" 
 // ids='["password", "username"]' 
 // endpoint="/login"
+// closest="form|tr|section|..."
 //   href="/vision-general/" error="No se pudo iniciar session ❌">
 //   Continuar</button>
 //:
@@ -38,11 +41,11 @@ class PostListener extends HTMLElement {
 
   searchDomAndAttachListeners() {
     const elements = document.querySelectorAll('[endpoint]');
-    elements.forEach(button => {
+    elements.forEach((button) => {
       const endpoint = button.getAttribute('endpoint')?.trim();
       if (
         endpoint &&
-        this.endpoints.map(e => e.trim()).includes(endpoint) &&
+        this.endpoints.map((e) => e.trim()).includes(endpoint) &&
         button.tagName.toLowerCase() === 'button'
       ) {
         const storedAttributes = {
@@ -51,10 +54,18 @@ class PostListener extends HTMLElement {
           ids: JSON.parse(button.getAttribute('ids') || '[]'),
           names: JSON.parse(button.getAttribute('names') || '[]'),
           href: button.getAttribute('href'),
-          originalText: button.textContent.trim()
+          closestSelector: button.getAttribute('closest') || null,
+          originalText: button.textContent.trim(),
         };
 
-        this.removeAttributes(button);
+        const scopeElement = storedAttributes.closestSelector
+          ? button.closest(storedAttributes.closestSelector)
+          : null;
+
+        if (!scopeElement?.tagName.toLowerCase() === 'tr') {
+          this.removeAttributes(button);
+        }
+
         button.addEventListener('click', () =>
           this.handleButtonClick(button, endpoint, storedAttributes)
         );
@@ -67,20 +78,27 @@ class PostListener extends HTMLElement {
     button.requestInProgress = true;
     this.disableButton(button);
 
-    const form = button.closest('form');
-    const formData = {};
+    const scopeElement = storedAttributes.closestSelector
+      ? button.closest(storedAttributes.closestSelector)
+      : null;
 
-    storedAttributes.ids.forEach(id => {
-      const input = form?.querySelector(`#${id}`);
+    const formData = {};
+    storedAttributes.ids.forEach((id) => {
+      const input = (scopeElement || document).querySelector(`#${id}`);
       if (input) {
         formData[input.id] = input.value;
       }
     });
 
-    if (form && !form.checkValidity()) {
-      form.reportValidity();
-      button.requestInProgress = false;
+    // Only validate if scope is a <form>
+    if (
+      scopeElement &&
+      scopeElement.tagName.toLowerCase() === 'form' &&
+      !scopeElement.checkValidity()
+    ) {
+      scopeElement.reportValidity();
       button.disabled = false;
+      button.requestInProgress = false;
       return;
     }
 
@@ -96,36 +114,32 @@ class PostListener extends HTMLElement {
 
       if (response.ok) {
         button.textContent = storedAttributes.successText;
-        if (useDelay) {
-          setTimeout(() => {
-            storedAttributes.href
-              ? (window.location.href = storedAttributes.href)
-              : form?.reset();
-          }, delay);
-        } else {
-          storedAttributes.href
-            ? (window.location.href = storedAttributes.href)
-            : form?.reset();
-        }
+
+        const resetOrRedirect = () => {
+          if (storedAttributes.href) {
+            window.location.href = storedAttributes.href;
+          } else if (scopeElement?.tagName.toLowerCase() === 'form') {
+            scopeElement.reset?.();
+          }
+        };
+
+        useDelay ? setTimeout(resetOrRedirect, delay) : resetOrRedirect();
       } else {
         button.textContent = storedAttributes.errorText;
-        form?.reset();
+        if (scopeElement?.tagName.toLowerCase() === 'form') {
+          scopeElement.reset?.();
+        }
       }
     } catch (err) {
-      console.error("Fetch failed:", err);
+      console.error('Fetch failed:', err);
       button.textContent = storedAttributes.errorText;
     } finally {
-      if (useDelay) {
-        setTimeout(() => {
-          button.textContent = storedAttributes.originalText;
-          button.disabled = false;
-          button.requestInProgress = false;
-        }, delay);
-      } else {
+      const restore = () => {
         button.textContent = storedAttributes.originalText;
         button.disabled = false;
         button.requestInProgress = false;
-      }
+      };
+      useDelay ? setTimeout(restore, delay) : restore();
     }
   }
 
@@ -139,8 +153,8 @@ class PostListener extends HTMLElement {
     button.removeAttribute('href');
     button.removeAttribute('success');
     button.removeAttribute('error');
+    button.removeAttribute('closest');
   }
 }
 
 customElements.define('post-listener', PostListener);
-
