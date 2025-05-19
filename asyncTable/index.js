@@ -1,20 +1,22 @@
 // Published: Mon Oct 14 07:25:05 PM CST 2024
-//
+// dom 18 may 2025 20:12:40 CST
 // ATTRIBUTES: 
 // endpoint : string; points the endpoint to get data
 // searchAttribute: "/data"; represents the attribute we are getting from endpoint
-// editEndpoint: string; is the enpoint to make changes to a record
-// hideFromView: [item1,item2,item3]; array of strings which contains columns to hide
-// class: this isn't a shadow dom component so we can use userss custom className
-// storedData: string; this is a Proxy state created by user will be accesed by window[storedData] 
+// hideFromView?: [item1,item2,item3]; array of strings which contains columns to hide
+// storedData?: string; this is a Proxy state created by user will be accesed by sessionStorage[storedData] 
+// filterIcon?: src or icon to be used when a header is filtering
+// iconPosition: "left"|"right"  position of the icon in retion with header
+// columnsThatSort?: let user choose which headers will sort on his table
+// pagination?: if true adds pagination to table 10 rows per defect... WORKING ON A BETTER APPROACH
 
 
 /* FUCTIONALITIES:
   *
   * Sort when clicked on headers
-  * if storedData is passed this will fetch from custom Proxy state
   * if storedData is NOT passed this will fetch from localhost/api API
   * fallback to slot name="tag" if anything goes wrong
+  * exposed CSS with ::part(table) and ::part(pagination)
   */
 
 /*USE EXAMPLES:
@@ -42,165 +44,268 @@
   */
 
 class AsyncTable extends HTMLElement {
+  static observedAttributes = ['rowsPerPage'];
+
   constructor() {
     super();
     this.sortState = {};
-    this.currentRowData = null; // Store the row data being edited
+    this.currentPage = 1;
+    this.rowsPerPage = 10;
+    this.shadow = this.attachShadow({ mode: 'open' });
+
+    const styleSheet = new CSSStyleSheet();
+    styleSheet.replaceSync(`
+      :host { display: block; }
+      table { width: 100%; border-collapse: collapse; }
+      th { cursor: pointer; text-align: left; }
+      td, th { padding: 8px; border: 1px solid #ccc; }
+      .pagination-controls { margin-top: 10px; display: flex; gap: 4px; }
+    `);
+    this.shadow.adoptedStyleSheets = [styleSheet];
+  }
+
+  attributeChangedCallback(name, _, newVal) {
+    if (name === 'rowsPerPage' && !isNaN(parseInt(newVal))) {
+      this.rowsPerPage = parseInt(newVal);
+    }
   }
 
   async connectedCallback() {
-    // Store the attribute values in storedComponents
+    this.elementExtraSlot = this.querySelector('[data-extra-slot]');
+    this.elementLeftSlot = this.querySelector('[slot="lateralleft"]');
+    this.elementRightSlot = this.querySelector('[slot="lateralright"]');
+
     this.storedComponents = {
-      className: this.getAttribute('class') || '',
       endpoint: this.getAttribute('endpoint'),
       hideFromView: this.getAttribute('hideFromView'),
       searchAttribute: this.getAttribute('searchAttribute'),
       storedData: this.getAttribute('storedData'),
+      columnsThatSort: (this.getAttribute('columnsThatSort') || '').split(',').map((s) => s.trim()),
+      filterIcon: this.getAttribute('filterIcon') || '',
+      iconPosition: this.getAttribute('iconPosition') || 'right',
+      pagination: this.getAttribute('pagination') === 'true',
     };
 
-    // Check if this specific table instance has a data-extra-slot element
-    this.elementExtraSlot = this.querySelector('[data-extra-slot]');
-
-    let data = null;
-
-    // Wait for 200ms before checking for the state in window[storedData]
-    // await new Promise(resolve => setTimeout(resolve, 600));
-
-    // Check if storedData exists in window
-    if (this.storedComponents.storedData && window[this.storedComponents.storedData]) {
-      // Extract the data from Proxy
-      const proxyData = window[this.storedComponents.storedData];
-      data = proxyData[this.storedComponents.endpoint]?.[this.storedComponents.searchAttribute] || [];
+    if (document.readyState !== 'complete') {
+      await new Promise((resolve) => window.addEventListener('load', resolve, { once: true }));
     }
 
-    // If no data is found in window[storedData], fetch it from the API
+    let data = null;
+    if (this.storedComponents.storedData && sessionStorage[this.storedComponents.storedData]) {
+      try {
+        const stored = JSON.parse(sessionStorage[this.storedComponents.storedData]);
+        data =
+          stored?.[this.storedComponents.endpoint]?.[this.storedComponents.searchAttribute] || [];
+      } catch (e) {
+        console.warn('Error parsing sessionStorage data:', e);
+      }
+    }
+
     if (!data) {
       try {
         const response = await fetch(this.storedComponents.endpoint);
         const fetchedData = await response.json();
         data = fetchedData[this.storedComponents.searchAttribute] || [];
 
-        // Optionally, store fetched data in window for future use
-        window[this.storedComponents.storedData] = fetchedData; // Store the entire response
+        if (this.storedComponents.storedData) {
+          sessionStorage[this.storedComponents.storedData] = JSON.stringify({
+            [this.storedComponents.endpoint]: fetchedData,
+          });
+        }
       } catch (error) {
         console.error('Failed to fetch data from API:', error);
-        return; // Exit if fetch fails
+        this.renderFallback();
+        return;
       }
     }
 
-    // Ensure data is an array or at least not empty
     if (!Array.isArray(data) || data.length === 0) {
-      console.warn('Data endpoint is empty. Showing slot content.');
-      return; // Do not proceed to render the table if data is empty or invalid
+      this.renderFallback();
+      return;
     }
 
-    // Proceed to store rows and hidden columns after obtaining data
     this.rows = data;
     this.hiddenColumns = this.getHiddenColumns(this.storedComponents.hideFromView);
-    if (document.readyState === 'loading') {
-      await new Promise((resolve) => document.addEventListener('DOMContentLoaded', resolve));
-    }
-    // Render the table
-    this.renderTable({
-      className: this.storedComponents.className,
+    this.renderTable();
+
+    this.shadow.addEventListener('click', (e) => {
+      const el = e.target.closest('[endpoint]');
+      if (!el) return;
+
+      const endpoint = el.getAttribute('endpoint');
+      const ids = JSON.parse(el.getAttribute('ids') || '[]');
+      const anchor = el.closest(el.getAttribute('closest') || 'tr');
+
+      const payload = Object.fromEntries(
+        ids.map((id) => {
+          const target = anchor?.querySelector(`#${id}`);
+          return [id, target?.textContent?.trim()];
+        })
+      );
+
+      this.dispatchEvent(
+        new CustomEvent('post-request', {
+          bubbles: true,
+          composed: true,
+          detail: { endpoint, payload, button: el },
+        })
+      );
     });
   }
 
-  renderTable({ className }) {
+  renderFallback() {
+    this.shadow.innerHTML = '';
+    const slot = document.createElement('slot');
+    slot.name = 'tag';
+    this.shadow.appendChild(slot);
+  }
+
+  renderTable() {
     const template = document.createElement('template');
     template.innerHTML = `
       <slot name="tag"></slot>
-      <table class="${className}">
-        <thead>
-          <tr id="header-row"></tr>
-        </thead>
+      <table part="table">
+        <thead><tr id="header-row"></tr></thead>
         <tbody id="body-rows"></tbody>
       </table>
+      ${this.storedComponents.pagination ? `<div part="pagination" class="pagination-controls"></div>` : ''}
     `;
 
-    const tableClone = template.content.cloneNode(true);
-    const headerRow = tableClone.querySelector('#header-row');
-    const tbody = tableClone.querySelector('#body-rows');
-
+    const content = template.content.cloneNode(true);
+    const headerRow = content.querySelector('#header-row');
+    const tbody = content.querySelector('#body-rows');
     const headers = Object.keys(this.rows[0] || {});
 
-    // Create the header row
-    headers.forEach(header => {
-      if (!this.hiddenColumns.includes(header)) {
-        const th = document.createElement('th');
+    if (this.elementLeftSlot) headerRow.appendChild(document.createElement('th'));
+
+    headers.forEach((header) => {
+      const th = document.createElement('th');
+      if (this.storedComponents.filterIcon) {
+        const icon = document.createElement('img');
+        icon.src = this.storedComponents.filterIcon;
+        icon.alt = 'sort';
+        icon.style.width = '1em';
+        icon.style.height = '1em';
+        icon.style.verticalAlign = 'middle';
+        this.storedComponents.iconPosition === 'left'
+          ? th.append(icon, ` ${header}`)
+          : th.append(`${header} `, icon);
+      } else {
         th.textContent = header;
-
-        // Add click event for sorting
-        th.addEventListener('click', () => this.sortTable(header));
-
-        headerRow.appendChild(th);
       }
+
+      if (this.hiddenColumns.includes(header)) {
+        th.hidden = true;
+      }
+
+      if (this.storedComponents.columnsThatSort.includes(header)) {
+        th.addEventListener('click', () => this.sortTable(header));
+      }
+
+      headerRow.appendChild(th);
     });
 
-    // Populate the table body
-    this.renderRows(tbody, this.rows, this.hiddenColumns);
+    if (this.elementExtraSlot) headerRow.appendChild(document.createElement('th'));
+    if (this.elementRightSlot) headerRow.appendChild(document.createElement('th'));
 
-    // Clear previous content and append new table
-    this.innerHTML = ''; // Clear existing content
-    this.appendChild(tableClone); // Append the table
+    while (this.shadow.firstChild) {
+      this.shadow.removeChild(this.shadow.firstChild);
+    }
+
+    this.shadow.appendChild(content);
+    this.renderRows(this.shadow.querySelector('tbody'));
+
+    if (this.storedComponents.pagination) {
+      this.renderPaginationControls();
+    }
   }
 
-  renderRows(tbody, dataArray, hiddenColumns) {
-    tbody.innerHTML = ''; // Clear existing rows
+  renderRows(tbody) {
+    tbody.innerHTML = '';
+    const start = (this.currentPage - 1) * this.rowsPerPage;
+    const end = start + this.rowsPerPage;
+    const currentRows = this.storedComponents.pagination ? this.rows.slice(start, end) : this.rows;
 
-    dataArray.forEach((row) => {
+    currentRows.forEach((row) => {
       const tr = document.createElement('tr');
 
-      // Add the data for each column in the row
-      Object.keys(row).forEach(header => {
-        if (!hiddenColumns.includes(header)) {
-          const td = document.createElement('td');
-          td.textContent = row[header];
-          tr.appendChild(td);
+      if (this.elementLeftSlot) {
+        const td = document.createElement('td');
+        const node = this.elementLeftSlot.cloneNode(true);
+        const button = node.querySelector('[endpoint]');
+        if (button) td.appendChild(button);
+        else td.appendChild(node);
+        tr.appendChild(td);
+      }
+
+      Object.keys(row).forEach((header) => {
+        const td = document.createElement('td');
+        td.id = header;
+        td.textContent = row[header];
+        if (this.hiddenColumns.includes(header)) {
+          td.hidden = true;
         }
+        tr.appendChild(td);
       });
 
-      // Check for extra slot only in the current table instance
       if (this.elementExtraSlot) {
-        const clone = this.elementExtraSlot.cloneNode(true);
-        const extraRowContainer = document.createElement('td');
-        clone.style.display = 'block';
-        extraRowContainer.appendChild(clone);
-        tr.appendChild(extraRowContainer);
+        const td = document.createElement('td');
+        td.appendChild(this.elementExtraSlot.cloneNode(true));
+        tr.appendChild(td);
+      }
+
+      if (this.elementRightSlot) {
+        const td = document.createElement('td');
+        const node = this.elementRightSlot.cloneNode(true);
+        td.appendChild(node);
+        tr.appendChild(td);
       }
 
       tbody.appendChild(tr);
     });
   }
 
+  renderPaginationControls() {
+    const container = this.shadow.querySelector('.pagination-controls');
+    container.innerHTML = '';
+    const totalPages = Math.ceil(this.rows.length / this.rowsPerPage);
+    for (let i = 1; i <= totalPages; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = i;
+      if (i === this.currentPage) btn.disabled = true;
+      btn.addEventListener('click', () => {
+        this.currentPage = i;
+        this.renderRows(this.shadow.querySelector('tbody'));
+        this.renderPaginationControls();
+      });
+      container.appendChild(btn);
+    }
+  }
+
   sortTable(header) {
-    // Toggle sort state
-    this.sortState[header] = this.sortState[header] === 'asc' ? 'desc' : 'asc';
-
-    // Sort data based on the current sort state
-    const sortedData = this.rows.sort((a, b) => {
-      const aValue = header === 'price' ? parseFloat(a[header]) : a[header];
-      const bValue = header === 'price' ? parseFloat(b[header]) : b[header];
-
-      if (!isNaN(parseFloat(aValue)) && !isNaN(parseFloat(bValue))) {
-        const numA = parseFloat(aValue);
-        const numB = parseFloat(bValue);
-        return this.sortState[header] === 'asc' ? numA - numB : numB - numA;
-      } else {
-        return this.sortState[header] === 'asc'
-          ? (aValue > bValue ? 1 : -1)
-          : (aValue < bValue ? 1 : -1);
-      }
+    const order = this.sortState[header] === 'asc' ? 'desc' : 'asc';
+    this.sortState[header] = order;
+    this.rows.sort((a, b) => {
+      const aVal = a[header];
+      const bVal = b[header];
+      return !isNaN(aVal) && !isNaN(bVal)
+        ? order === 'asc'
+          ? aVal - bVal
+          : bVal - aVal
+        : order === 'asc'
+          ? String(aVal).localeCompare(String(bVal))
+          : String(bVal).localeCompare(String(aVal));
     });
-
-    // Re-render the table with sorted data
-    const tbody = this.querySelector('tbody');
-    this.renderRows(tbody, sortedData, this.hiddenColumns);
+    this.currentPage = 1;
+    this.renderRows(this.shadow.querySelector('tbody'));
+    if (this.storedComponents.pagination) this.renderPaginationControls();
   }
 
   getHiddenColumns(hideFromView) {
-    return hideFromView ? hideFromView.split(',').map(col => col.trim()) : [];
+    if (hideFromView === '*') return Object.keys(this.rows[0] || []);
+    return hideFromView ? hideFromView.split(',').map((col) => col.trim()) : [];
   }
 }
 
 customElements.define('async-table', AsyncTable);
+
