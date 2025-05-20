@@ -27,6 +27,42 @@
 //   Continuar</button>
 //:
 
+addEventListener('post-request', async (e) => {
+  const { endpoint, payload, button } = e.detail;
+  if (!endpoint || !button || button.requestInProgress) return;
+  button.requestInProgress = true;
+
+  const successText = button.getAttribute('success') || '✅ OK';
+  const errorText = button.getAttribute('error') || '❌ Error';
+  const href = button.getAttribute('href');
+  const originalText = button.textContent.trim();
+
+  button.disabled = true;
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      button.textContent = successText;
+      if (href) window.location.href = href;
+    } else {
+      button.textContent = errorText;
+    }
+  } catch (err) {
+    console.error('[post-request] Fetch failed:', err);
+    button.textContent = errorText;
+  } finally {
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.disabled = false;
+      button.requestInProgress = false;
+    }, 1500);
+  }
+});
+
 class PostListener extends HTMLElement {
   constructor() {
     super();
@@ -63,6 +99,7 @@ class PostListener extends HTMLElement {
           : null;
 
         if (!scopeElement?.tagName.toLowerCase() === 'tr') {
+          console.log('hmmmm', scopeElement);
           this.removeAttributes(button);
         }
 
@@ -85,7 +122,13 @@ class PostListener extends HTMLElement {
     const formData = {};
     storedAttributes.ids.forEach((id) => {
       const input = (scopeElement || document).querySelector(`#${id}`);
-      if (input) {
+      if (!input) return;
+
+      if (input.type === 'checkbox') {
+        if (input.checked) {
+          formData[input.id] = true; // or use `input.value` if needed
+        }
+      } else {
         formData[input.id] = input.value;
       }
     });
