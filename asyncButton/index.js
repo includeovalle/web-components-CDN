@@ -67,11 +67,19 @@ class PostListener extends HTMLElement {
   constructor() {
     super();
     this.endpoints = JSON.parse(this.getAttribute('endpoints') || '[]');
+    this.handleButtonClick = this.handleButtonClick.bind(this);
   }
 
   connectedCallback() {
-    document.addEventListener('DOMContentLoaded', () => {
+    this.searchDomAndAttachListeners();
+
+    const observer = new MutationObserver(() => {
       this.searchDomAndAttachListeners();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
     });
   }
 
@@ -126,14 +134,13 @@ class PostListener extends HTMLElement {
 
       if (input.type === 'checkbox') {
         if (input.checked) {
-          formData[input.id] = true; // or use `input.value` if needed
+          formData[input.id] = true;
         }
       } else {
         formData[input.id] = input.value;
       }
     });
 
-    // Only validate if scope is a <form>
     if (
       scopeElement &&
       scopeElement.tagName.toLowerCase() === 'form' &&
@@ -174,7 +181,7 @@ class PostListener extends HTMLElement {
         }
       }
     } catch (err) {
-      console.error('Fetch failed:', err);
+      console.error('[handleButtonClick] Fetch failed:', err);
       button.textContent = storedAttributes.errorText;
     } finally {
       const restore = () => {
