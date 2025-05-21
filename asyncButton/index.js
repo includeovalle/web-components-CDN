@@ -4,7 +4,7 @@
 // Tue Apr 15 07:51:45 PM CST 2025
 // Mié 07 may 2025 19:05:57 CST
 // Dom 18 may 2025 20:32:35 CST
-//
+// Mié 21 may 2025 06:54:48 CST
 // We register into this web-component the endpoints we are going to open on the page
 // <post-listener endpoints='["/api/teams/accept", "/api/teams/control", "endpoint3...",]'></post-listener>
 // so this webcomponent will search for buttons containing attribute 'endpoint'
@@ -27,7 +27,7 @@
 //   Continuar</button>
 //:
 
-addEventListener('post-request', async (e) => {
+window.addEventListener('post-request', async (e) => {
   const { endpoint, payload, button } = e.detail;
   if (!endpoint || !button || button.requestInProgress) return;
   button.requestInProgress = true;
