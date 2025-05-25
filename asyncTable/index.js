@@ -1,23 +1,23 @@
 // Published: Mon Oct 14 07:25:05 PM CST 2024
 // dom 18 may 2025 20:12:40 CST
-// ATTRIBUTES: 
+// dom 25 may 2025 07:07:20 CST
+// ATTRIBUTES:
 // endpoint : string; points the endpoint to get data
 // searchAttribute: "/data"; represents the attribute we are getting from endpoint
 // hideFromView?: [item1,item2,item3]; array of strings which contains columns to hide
-// storedData?: string; this is a Proxy state created by user will be accesed by sessionStorage[storedData] 
+// storedData?: string; this is a Proxy state created by user will be accesed by sessionStorage[storedData]
 // filterIcon?: src or icon to be used when a header is filtering
 // iconPosition: "left"|"right"  position of the icon in retion with header
 // columnsThatSort?: let user choose which headers will sort on his table
 // pagination?: if true adds pagination to table 10 rows per defect... WORKING ON A BETTER APPROACH
 
-
 /* FUCTIONALITIES:
-  *
-  * Sort when clicked on headers
-  * if storedData is NOT passed this will fetch from localhost/api API
-  * fallback to slot name="tag" if anything goes wrong
-  * exposed CSS with ::part(table) and ::part(pagination)
-  */
+ *
+ * Sort when clicked on headers
+ * if storedData is NOT passed this will fetch from localhost/api API
+ * fallback to slot name="tag" if anything goes wrong
+ * exposed CSS with ::part(table) and ::part(pagination)
+ */
 
 /*USE EXAMPLES:
   *
@@ -213,7 +213,7 @@ class AsyncTable extends HTMLElement {
     }
 
     this.shadow.appendChild(content);
-    this.renderRows(this.shadow.querySelector('tbody'));
+    this.renderRows(tbody);
 
     if (this.storedComponents.pagination) {
       this.renderPaginationControls();
@@ -232,12 +232,10 @@ class AsyncTable extends HTMLElement {
       if (this.elementLeftSlot) {
         const td = document.createElement('td');
         const node = this.elementLeftSlot.cloneNode(true);
-        const button = node.querySelector('[endpoint]');
-        if (button) td.appendChild(button);
-        else td.appendChild(node);
+        node.part = 'lateral-left';
+        td.appendChild(node);
         tr.appendChild(td);
       }
-
       Object.keys(row).forEach((header) => {
         const td = document.createElement('td');
         td.id = header;
@@ -256,11 +254,11 @@ class AsyncTable extends HTMLElement {
 
       if (this.elementRightSlot) {
         const td = document.createElement('td');
+        td.part = 'lateral-right';
         const node = this.elementRightSlot.cloneNode(true);
         td.appendChild(node);
         tr.appendChild(td);
       }
-
       tbody.appendChild(tr);
     });
   }
@@ -275,7 +273,7 @@ class AsyncTable extends HTMLElement {
       if (i === this.currentPage) btn.disabled = true;
       btn.addEventListener('click', () => {
         this.currentPage = i;
-        this.renderRows(this.shadow.querySelector('tbody'));
+        this.renderRows(tbody);
         this.renderPaginationControls();
       });
       container.appendChild(btn);
@@ -297,7 +295,7 @@ class AsyncTable extends HTMLElement {
           : String(bVal).localeCompare(String(aVal));
     });
     this.currentPage = 1;
-    this.renderRows(this.shadow.querySelector('tbody'));
+    this.renderRows(tbody);
     if (this.storedComponents.pagination) this.renderPaginationControls();
   }
 
@@ -308,4 +306,3 @@ class AsyncTable extends HTMLElement {
 }
 
 customElements.define('async-table', AsyncTable);
-
