@@ -1,7 +1,7 @@
 
 /*
   * Wed Apr 30 11:44:39 PM CST 2025
-  *
+  * Dom 25 may 2025 20:25:29 CST
   * Este componente inserta un template de html en nuestro actual DOM
   *
   * @params:
@@ -14,72 +14,28 @@
 
 
 class TemplateInjector extends HTMLElement {
-  constructor() {
-    super();
-  }
-
   connectedCallback() {
-    this.inject();
-  }
-
-  async inject() {
     const templateId = this.getAttribute('injectTemplate');
-    const templateFile = this.getAttribute('templateFile');
+    if (!templateId) return;
 
+    const template = document.getElementById(templateId);
+    if (!template) return;
 
-    if (!templateId) {
-      console.error('[template-injector] ❌ Faltó el atributo injectTemplate.');
-      return;
-    }
+    const clone = template.content.cloneNode(true);
+    const children = Array.from(this.children);
 
-    let template = document.getElementById(templateId);
+    for (const el of children) {
+      const slotName = el.getAttribute('slot');
+      if (!slotName) continue;
 
-    if (!template && templateFile) {
-      try {
-        template = await this.loadTemplateFromFile(templateFile, templateId);
-      } catch (error) {
-        console.error('[template-injector] ❌ Error cargando archivo de templates:', error);
-        return;
+      const target = clone.querySelector(`[data-inject-${slotName}]`);
+      if (target) {
+        target.replaceWith(el);
       }
     }
 
-    if (!template) {
-      console.error(
-        `[template-injector] ❌ No se encontró el template con id "${templateId}" después de todo.`
-      );
-      return;
-    }
-
-    const clone = template.content.cloneNode(true);
-    this.replaceWith(clone);
-  }
-
-  async loadTemplateFromFile(filePath, wantedTemplateId) {
-
-    if (document.querySelector(`[data-template-file="${filePath}"]`)) {
-      return document.getElementById(wantedTemplateId);
-    }
-
-    const response = await fetch(filePath);
-    if (!response.ok) {
-      throw new Error(`❌ Falló el fetch del archivo: ${filePath}`);
-    }
-
-    const htmlText = await response.text();
-
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(htmlText, 'text/html');
-
-    const wantedTemplate = doc.getElementById(wantedTemplateId);
-    if (!wantedTemplate) {
-      throw new Error(`❌ No se encontró template id="${wantedTemplateId}" en "${filePath}"`);
-    }
-
-
-    wantedTemplate.dataset.templateFile = filePath;
-    document.body.appendChild(wantedTemplate);
-
-    return wantedTemplate;
+    this.appendChild(clone);
+    this.removeAttribute('injectTemplate');
   }
 }
 
