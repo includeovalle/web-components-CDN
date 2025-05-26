@@ -82,15 +82,16 @@ class AsyncIf extends HTMLElement {
   constructor() {
     super();
 
-    this.querySelectorAll('[slot]').forEach(el => el.classList.remove('shown'));
+    // Hide all slotted content initially
+    this.querySelectorAll('[slot]').forEach((el) => (el.hidden = true));
 
+    // Shadow styles
     const style = new CSSStyleSheet();
     style.replaceSync(`
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
-      .wrapper { text-align: center; }
       .spinner {
         width: 1.5rem;
         height: 1.5rem;
@@ -100,30 +101,25 @@ class AsyncIf extends HTMLElement {
         animation: spin 1s linear infinite;
         margin: 1rem auto;
       }
-      .hidden { display: none !important; }
-      ::slotted(*) { display: none; }
-      .slots-ready ::slotted(.shown) { display: block; }
     `);
 
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.adoptedStyleSheets = [style];
 
-    this.wrapper = document.createElement('div');
-    this.wrapper.className = 'wrapper';
-    this.wrapper.setAttribute('part', 'wrapper');
-
+    // Spinner
     this.spinner = document.createElement('div');
     this.spinner.className = 'spinner';
     this.spinner.setAttribute('part', 'spinner');
 
+    // Named slots
     this.slotTag = document.createElement('slot');
     this.slotTag.name = 'tag';
 
     this.slotDefault = document.createElement('slot');
     this.slotDefault.name = 'default';
 
-    this.wrapper.append(this.spinner, this.slotTag, this.slotDefault);
-    this.shadowRoot.appendChild(this.wrapper);
+    // Inject directly (no wrapper)
+    this.shadowRoot.append(this.spinner, this.slotTag, this.slotDefault);
   }
 
   async connectedCallback() {
@@ -133,16 +129,17 @@ class AsyncIf extends HTMLElement {
     const storeName = this.getAttribute('storedData');
     const negate = this.getAttribute('not') === 'true';
 
+    // Clean up attributes
     this.removeAttribute('endpoint');
     this.removeAttribute('searchAttribute');
     this.removeAttribute('checkValue');
 
-    if (!endpoint || !attrPath || !storeName) {
+    if (!endpoint || !attrPath) {
       console.error('[async-if] ❌ Missing required attributes.');
       return;
     }
 
-    await new Promise(res => setTimeout(res, 100));
+    await new Promise((res) => setTimeout(res, 100)); // Optional delay
 
     try {
       let store = JSON.parse(sessionStorage.getItem(storeName) || '{}');
@@ -153,14 +150,13 @@ class AsyncIf extends HTMLElement {
         if (!response.ok) throw new Error(`❌ ${response.status} - ${response.statusText}`);
         data = await response.json();
         store[endpoint] = data;
-        sessionStorage.setItem(storeName, JSON.stringify(store));
       }
 
       const value = this.getDeepValue(data, attrPath);
       let valid;
 
       if (checkValueRaw != null) {
-        const values = checkValueRaw.split(',').map(v => v.trim());
+        const values = checkValueRaw.split(',').map((v) => v.trim());
         valid = values.includes(String(value));
       } else {
         valid = Boolean(value);
@@ -168,29 +164,27 @@ class AsyncIf extends HTMLElement {
 
       if (negate) valid = !valid;
 
-      this.spinner.classList.add('hidden');
+      this.spinner.hidden = true;
 
       const tagElements = Array.from(this.querySelectorAll('[slot="tag"]'));
       const defaultElements = Array.from(this.querySelectorAll('[slot="default"]'));
 
       if (valid) {
-        defaultElements.forEach(el => el.remove());
-        tagElements.forEach(el => el.classList.add('shown'));
+        defaultElements.forEach((el) => el.remove());
+        tagElements.forEach((el) => (el.hidden = false));
       } else {
-        tagElements.forEach(el => el.remove());
-        defaultElements.forEach(el => el.classList.add('shown'));
+        tagElements.forEach((el) => el.remove());
+        defaultElements.forEach((el) => (el.hidden = false));
       }
-
-      this.wrapper.classList.add('slots-ready');
     } catch (err) {
       console.error('[async-if] ❌ Error loading or parsing data:', err);
-      this.spinner.classList.add('hidden');
+      this.spinner.hidden = true;
 
       const tagElements = Array.from(this.querySelectorAll('[slot="tag"]'));
-      tagElements.forEach(el => el.remove());
+      tagElements.forEach((el) => (el.hidden = true));
 
       const defaultElements = Array.from(this.querySelectorAll('[slot="default"]'));
-      defaultElements.forEach(el => el.classList.add('shown'));
+      defaultElements.forEach((el) => (el.hidden = false));
     }
   }
 
@@ -200,4 +194,3 @@ class AsyncIf extends HTMLElement {
 }
 
 customElements.define('async-if', AsyncIf);
-
