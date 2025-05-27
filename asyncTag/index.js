@@ -29,109 +29,107 @@ USO:
           </style>
 */
 
-const wrapper = document.createElement('div');
-wrapper.className = 'wrapper';
-wrapper.setAttribute('part', 'wrapper');
-
-const spinner = document.createElement('div');
-spinner.className = 'spinner';
-spinner.setAttribute('part', 'spinner');
-
-const slot = document.createElement('slot');
-slot.name = 'tag';
-
-wrapper.appendChild(spinner);
-wrapper.appendChild(slot);
-
-const styleSheet = new CSSStyleSheet();
-styleSheet.replaceSync(`
-  .spinner {
-    display: none;
-    width: 1.5rem;
-    height: 1.5rem;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #999;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-
-  .wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-`);
-
 class InjectorGenerator extends HTMLElement {
   constructor() {
     super();
-    const shadow = this.attachShadow({ mode: 'open' });
-    shadow.adoptedStyleSheets = [styleSheet];
-    shadow.appendChild(wrapper.cloneNode(true));
+    this.attachShadow({ mode: 'open' });
+    const shadow = this.shadowRoot;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'wrapper';
+    wrapper.setAttribute('part', 'wrapper');
+
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner';
+    spinner.setAttribute('part', 'spinner');
+
+    const slot = document.createElement('slot');
+    slot.name = 'tag';
+
+    wrapper.append(spinner, slot);
+    shadow.append(wrapper);
+
+    const style = new CSSStyleSheet();
+    style.replaceSync(`
+      .spinner {
+        display: none;
+        width: 1.5rem;
+        height: 1.5rem;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #999;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      .wrapper {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+    `);
+    shadow.adoptedStyleSheets = [style];
   }
 
-  async connectedCallback() {
-    if (this._initialized) {
-      console.log('[async-tag] ⚠️ Already initialized — skipping duplicate connectedCallback');
-      return;
-    }
+  connectedCallback() {
+    if (this._initialized) return;
+    this._initialized = true;
+
     const endpoint = this.getAttribute('endpoint');
     const attribute = this.getAttribute('searchAttribute');
-    const _data = this.getAttribute('storedData');
+    const storeName = this.getAttribute('storedData');
+    const slot = this.shadowRoot.querySelector('slot[name="tag"]');
+    const assigned = slot.assignedElements()?.[0];
 
-    const slotElement = this.shadowRoot.querySelector('slot[name="tag"]');
-    const assignedElements = slotElement.assignedNodes();
-    const assignedElement = assignedElements.length > 0 ? assignedElements[0] : null;
+    if (!assigned || !endpoint || !attribute) return;
 
-    if (!assignedElement) {
-      console.error("No element assigned to the 'tag' slot.");
-      return;
-    }
-
-    const initialContent = assignedElement.textContent.trim();
     const spinner = this.shadowRoot.querySelector('.spinner');
+    const updateDisplay = (data) => {
+      const value = data?.[endpoint]?.[attribute];
+      assigned.textContent = value ?? 'No data available';
+    };
+
     spinner.style.display = 'inline-block';
 
-    try {
-      if (!endpoint) {
-        console.error('No endpoint provided');
-        return;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, 180));
-      let storedData = window[_data]?.[endpoint];
-
-      if (!storedData) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        storedData = window[_data]?.[endpoint];
-      }
-
-      if (storedData) {
-        assignedElement.textContent = storedData[attribute] || 'No data available';
+    const load = () => {
+      const cached = sessionStorage.getItem(storeName);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          updateDisplay(parsed);
+        } catch (err) {
+          assigned.textContent = 'Error parsing store';
+        }
       } else {
-        assignedElement.textContent = initialContent || 'default missing endpoint attribute';
-
-        const response = await fetch(endpoint);
-        if (!response.ok)
-          throw new Error(`Error fetching from ${endpoint}: ${response.statusText}`);
-        const data = await response.json();
-
-        window[_data] = { ...(window[_data] || {}), [endpoint]: data };
-        assignedElement.textContent = data[attribute] || 'No data available';
+        assigned.textContent = 'No data available';
       }
-    } catch (error) {
-      console.error('Error:', error);
-      assignedElement.textContent = initialContent;
-    } finally {
       spinner.style.display = 'none';
+    };
+
+    if (storeName) {
+      this.addEventListener('store-updated', (e) => {
+        if (e.detail?.key === storeName) {
+          updateDisplay(e.detail.data);
+        }
+      });
+      load();
+    } else {
+      // Fallback if no proxy-store is defined
+      fetch(endpoint)
+        .then(res => res.json())
+        .then(data => {
+          assigned.textContent = data[attribute] ?? 'No data available';
+        })
+        .catch(() => {
+          assigned.textContent = 'Fetch failed';
+        })
+        .finally(() => {
+          spinner.style.display = 'none';
+        });
     }
   }
 }
 
 customElements.define('async-tag', InjectorGenerator);
-
