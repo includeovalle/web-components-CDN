@@ -3,18 +3,16 @@
 Sat Oct 12 09:14:21 PM CST 2024
 Sat May  3 11:56:38 AM CST 2025
 Mié 07 may 2025 18:23:51 CST
+vie 30 may 2025 06:02:16 CST
 
-@params:
-
-searchAttribute: string; represents the attribute we are aiming inside the API
-
-endpoint: string; represents the API we we will search for Either endpoint or sessionStorage(storedData)
-
-checkValue?: string; represents a concrete value we would expect from that API in order to meet conditions if that fails checks if slot default is provided to render its content if nothing comes doesn'nt render anything We added support for multiple values to check, coma separated  e.g. searchAttribute="docente,alumno"
-
-not?: boolean; if true negates the query to its oposite  similar to !
-
-storedData?: Represents if this will be calling a cached localStore or if will be making the API request on every render
+* @params:
+*     endpoint: Representa el enpoint al que haremos el llamado
+*     searchAttribute:  Representa el atributo que buscaremos en ese endpoint
+*     storedData?: Representa el nombre del proxy-store al que haremos el llamado http, 
+*     si no se provee un storedData este componente hara un llamado al endpoint
+*     en cada recarga de pagina o navegacion interna en la app
+*     delay?: el retraso en milisegundos antes de hacer cualquier verificacion del endpoint
+*     skipDelayIfCached?: is el valor es true, ignora el delay y sirve de inmediato
 
 
 
@@ -81,11 +79,8 @@ NOTE: <styles>: safely exposes spinner for customization using
 class AsyncIf extends HTMLElement {
   constructor() {
     super();
-
-    // Hide all slotted content initially
     this.querySelectorAll('[slot]').forEach((el) => (el.hidden = true));
 
-    // Shadow styles
     const style = new CSSStyleSheet();
     style.replaceSync(`
       @keyframes spin {
@@ -106,19 +101,16 @@ class AsyncIf extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.shadowRoot.adoptedStyleSheets = [style];
 
-    // Spinner
     this.spinner = document.createElement('div');
     this.spinner.className = 'spinner';
     this.spinner.setAttribute('part', 'spinner');
 
-    // Named slots
     this.slotTag = document.createElement('slot');
     this.slotTag.name = 'tag';
 
     this.slotDefault = document.createElement('slot');
     this.slotDefault.name = 'default';
 
-    // Inject directly (no wrapper)
     this.shadowRoot.append(this.spinner, this.slotTag, this.slotDefault);
   }
 
@@ -128,8 +120,9 @@ class AsyncIf extends HTMLElement {
     const checkValueRaw = this.getAttribute('checkValue');
     const storeName = this.getAttribute('storedData');
     const negate = this.getAttribute('not') === 'true';
+    const delay = Number(this.getAttribute('delay') || 0);
+    const skipDelayIfCached = this.getAttribute('skipDelayIfCached') === 'true';
 
-    // Clean up attributes
     this.removeAttribute('endpoint');
     this.removeAttribute('searchAttribute');
     this.removeAttribute('checkValue');
@@ -139,17 +132,35 @@ class AsyncIf extends HTMLElement {
       return;
     }
 
-    await new Promise((res) => setTimeout(res, 100)); // Optional delay
+    // Pull store *before* optional delay
+    let store = {};
+    let cachedData = null;
+    if (storeName) {
+      try {
+        store = JSON.parse(sessionStorage.getItem(storeName) || '{}');
+        cachedData = store[endpoint];
+      } catch (e) {
+        console.warn('[async-if] ⚠️ Invalid or empty sessionStorage:', e);
+      }
+    }
+
+    // Respect delay only if data is not cached or skipDelayIfCached is false
+    if (!(skipDelayIfCached && cachedData)) {
+      await new Promise((res) => setTimeout(res, delay));
+    }
 
     try {
-      let store = JSON.parse(sessionStorage.getItem(storeName) || '{}');
-      let data = store[endpoint];
+      let data = cachedData;
 
       if (!data) {
         const response = await fetch(endpoint);
         if (!response.ok) throw new Error(`❌ ${response.status} - ${response.statusText}`);
         data = await response.json();
-        store[endpoint] = data;
+
+        if (storeName) {
+          store[endpoint] = data;
+          sessionStorage.setItem(storeName, JSON.stringify(store));
+        }
       }
 
       const value = this.getDeepValue(data, attrPath);
