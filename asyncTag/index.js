@@ -1,4 +1,6 @@
 /*
+Vie 30 may 2025 06:18:02 CST
+
 * @params:
 *     endpoint: Representa el enpoint al que haremos el llamado
 *     searchAttribute:  Representa el atributo que buscaremos en ese endpoint
@@ -73,63 +75,86 @@ class InjectorGenerator extends HTMLElement {
     shadow.adoptedStyleSheets = [style];
   }
 
-  connectedCallback() {
-    if (this._initialized) return;
-    this._initialized = true;
+connectedCallback() {
+  if (this._initialized) return;
+  this._initialized = true;
 
-    const endpoint = this.getAttribute('endpoint');
-    const attribute = this.getAttribute('searchAttribute');
-    const storeName = this.getAttribute('storedData');
-    const slot = this.shadowRoot.querySelector('slot[name="tag"]');
-    const assigned = slot.assignedElements()?.[0];
+  const endpoint = this.getAttribute('endpoint');
+  const attribute = this.getAttribute('searchAttribute');
+  const storeName = this.getAttribute('storedData');
+  const delay = parseInt(this.getAttribute('delay') || '0', 10);
+  const skipDelayIfCached = this.getAttribute('skipDelayIfCached') === 'true';
+  const slot = this.shadowRoot.querySelector('slot[name="tag"]');
+  const assigned = slot.assignedElements()?.[0];
 
-    if (!assigned || !endpoint || !attribute) return;
+  if (!assigned || !endpoint || !attribute) return;
 
-    const spinner = this.shadowRoot.querySelector('.spinner');
-    const updateDisplay = (data) => {
-      const value = data?.[endpoint]?.[attribute];
-      assigned.textContent = value ?? 'No data available';
-    };
+  const spinner = this.shadowRoot.querySelector('.spinner');
 
-    spinner.style.display = 'inline-block';
+  const updateDisplay = (data) => {
+    const value = data?.[endpoint]?.[attribute];
+    assigned.textContent = value ?? 'No data available';
+  };
 
-    const load = () => {
-      const cached = sessionStorage.getItem(storeName);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          updateDisplay(parsed);
-        } catch (err) {
-          assigned.textContent = 'Error parsing store';
-        }
-      } else {
-        assigned.textContent = 'No data available';
+  const runWithSpinner = (fn) => {
+    spinner.hidden = false;
+    fn();
+  };
+
+  const loadFromStore = () => {
+    const cached = sessionStorage.getItem(storeName);
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        updateDisplay(parsed);
+      } catch (err) {
+        assigned.textContent = 'Error parsing store';
       }
-      spinner.style.display = 'none';
-    };
-
-    if (storeName) {
-      this.addEventListener('store-updated', (e) => {
-        if (e.detail?.key === storeName) {
-          updateDisplay(e.detail.data);
-        }
-      });
-      load();
     } else {
-      // Fallback if no proxy-store is defined
-      fetch(endpoint)
-        .then(res => res.json())
-        .then(data => {
-          assigned.textContent = data[attribute] ?? 'No data available';
-        })
-        .catch(() => {
-          assigned.textContent = 'Fetch failed';
-        })
-        .finally(() => {
-          spinner.style.display = 'none';
-        });
+      assigned.textContent = 'No data available';
     }
+    spinner.hidden = true;
+  };
+
+  const loadFromEndpoint = () => {
+    fetch(endpoint)
+      .then(res => res.json())
+      .then(data => {
+        assigned.textContent = data?.[attribute] ?? 'No data available';
+      })
+      .catch(() => {
+        assigned.textContent = 'Fetch failed';
+      })
+      .finally(() => {
+        spinner.hidden = true;
+      });
+  };
+
+  const execute = () => {
+    if (storeName) {
+      runWithSpinner(loadFromStore);
+    } else {
+      runWithSpinner(loadFromEndpoint);
+    }
+  };
+
+  if (storeName) {
+    this.addEventListener('store-updated', (e) => {
+      if (e.detail?.key === storeName) {
+        updateDisplay(e.detail.data);
+      }
+    });
+
+    const cached = sessionStorage.getItem(storeName);
+    if (cached && skipDelayIfCached) {
+      execute(); // No delay
+    } else {
+      setTimeout(execute, delay);
+    }
+  } else {
+    setTimeout(execute, delay);
   }
+}
 }
 
 customElements.define('async-tag', InjectorGenerator);
