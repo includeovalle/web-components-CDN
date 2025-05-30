@@ -1,4 +1,5 @@
 /*
+    Lun 26 may 2025 23:10:34 CST
   * @params:
   *   endpoints:  Representa un arreglo con los endpoints que va a traer el componente
   *   objectName: Representa el nombre del proxy donde se almacenara la informacion obtenida
@@ -32,9 +33,24 @@ class ProxyStore extends HTMLElement {
     this.objectName = this.getAttribute('objectname');
     this.useCache = this.getAttribute('cache') === 'true';
 
+    if (!this.useCache) {
+      sessionStorage.removeItem(this.objectName);
+    }
+
     if (!this.objectName) {
       console.error("[ProxyStore] 'objectname' attribute is missing.");
       return;
+    }
+
+    // 🔁 Clear sessionStorage if the page was reloaded
+    const navEntries = performance.getEntriesByType('navigation');
+    const isRefresh = navEntries.length && navEntries[0].type === 'reload';
+
+    if (isRefresh && this.useCache) {
+      console.log(
+        `[ProxyStore] Page was refreshed, clearing sessionStorage for "${this.objectName}"`
+      );
+      sessionStorage.removeItem(this.objectName);
     }
 
     this.removeAttribute('endpoints');
@@ -68,7 +84,7 @@ class ProxyStore extends HTMLElement {
         target[prop] = value;
         if (this.useCache) this.syncSessionStorage();
         return true;
-      }
+      },
     });
 
     window[this.objectName] = this.proxy;
@@ -106,7 +122,7 @@ class ProxyStore extends HTMLElement {
         target[prop] = value;
         if (this.useCache) this.syncSessionStorage();
         return true;
-      }
+      },
     });
     this.isProxyInitialized = true;
     window[newObjectName] = this.proxy;
@@ -123,29 +139,29 @@ class ProxyStore extends HTMLElement {
       return;
     }
 
-    endpointArray.forEach(endpoint => {
+    endpointArray.forEach((endpoint) => {
       if (!endpoint || typeof endpoint !== 'string') {
         console.error(`[ProxyStore] Invalid endpoint:`, endpoint);
         return;
       }
 
-      if (this.rawData[endpoint]) {
+      if (this.useCache && this.rawData[endpoint]) {
         console.log(`[ProxyStore] Cache hit for "${endpoint}"`);
         return;
       }
 
       console.log(`[ProxyStore] Fetching`);
       fetch(endpoint)
-        .then(response => {
+        .then((response) => {
           if (!response.ok) {
             throw new Error(`[ProxyStore] Error fetching "${endpoint}": ${response.statusText}`);
           }
           return response.json();
         })
-        .then(data => {
+        .then((data) => {
           this.proxy[endpoint] = data;
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(`[ProxyStore] Fetch error for "${endpoint}":`, err);
         });
     });
