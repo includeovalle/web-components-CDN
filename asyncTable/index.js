@@ -90,33 +90,42 @@ class AsyncTable extends HTMLElement {
       await new Promise((resolve) => window.addEventListener('load', resolve, { once: true }));
     }
 
+    const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
+    const MAX_RETRIES = 10;
     let data = null;
-    if (this.storedComponents.storedData && sessionStorage[this.storedComponents.storedData]) {
-      try {
-        const stored = JSON.parse(sessionStorage[this.storedComponents.storedData]);
-        data =
-          stored?.[this.storedComponents.endpoint]?.[this.storedComponents.searchAttribute] || [];
-      } catch (e) {
-        console.warn('Error parsing sessionStorage data:', e);
-      }
-    }
+    let retries = MAX_RETRIES;
 
-    if (!data) {
-      try {
-        const response = await fetch(this.storedComponents.endpoint);
-        const fetchedData = await response.json();
-        data = fetchedData[this.storedComponents.searchAttribute] || [];
+    while (retries-- > 0) {
+      data = null;
 
-        if (this.storedComponents.storedData) {
-          sessionStorage[this.storedComponents.storedData] = JSON.stringify({
-            [this.storedComponents.endpoint]: fetchedData,
-          });
+      if (this.storedComponents.storedData && sessionStorage[this.storedComponents.storedData]) {
+        try {
+          const stored = JSON.parse(sessionStorage[this.storedComponents.storedData]);
+          data =
+            stored?.[this.storedComponents.endpoint]?.[this.storedComponents.searchAttribute] || [];
+        } catch (e) {
+          console.warn('Error parsing sessionStorage data:', e);
         }
-      } catch (error) {
-        console.error('Failed to fetch data from API:', error);
-        this.renderFallback();
-        return;
+      } else {
+        try {
+          const response = await fetch(this.storedComponents.endpoint);
+          if (!response.ok) throw new Error(`Fetch error: ${response.status}`);
+          const fetchedData = await response.json();
+          data = fetchedData[this.storedComponents.searchAttribute] || [];
+
+          if (this.storedComponents.storedData) {
+            sessionStorage[this.storedComponents.storedData] = JSON.stringify({
+              [this.storedComponents.endpoint]: fetchedData,
+            });
+          }
+        } catch (error) {
+          console.warn('Fetch failed, will retry...', error);
+        }
       }
+
+      if (Array.isArray(data) && data.length > 0) break;
+
+      await sleep(300);
     }
 
     if (!Array.isArray(data) || data.length === 0) {
