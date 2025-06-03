@@ -1,5 +1,6 @@
 /*
     Dom 01 jun 2025 20:27:36 CST
+    Lun 02 jun 2025 18:52:34 CST
  *
                 <data-to-params listenTo="data-to-params" closest="tr" infoToParam='["id", "nombre"]'>
                 </data-to-params>
@@ -100,7 +101,7 @@ class DataToParams extends HTMLElement {
 
       const baseUrl = window.location.origin + window.location.pathname;
       const newUrl = `${baseUrl}?${params.toString()}`;
-      window.location.href = newUrl;
+      window.history.pushState({}, '', newUrl);
     }
   }
 }
