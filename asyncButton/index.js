@@ -1,10 +1,12 @@
-// BUTTON overhaul 
+// BUTTON overhaul
 // Mon Oct 21 11:01:29 AM CST 2024
 // Mon Apr 14 08:56:42 PM CST 2025
 // Tue Apr 15 07:51:45 PM CST 2025
 // Mié 07 may 2025 19:05:57 CST
 // Dom 18 may 2025 20:32:35 CST
 // Mié 21 may 2025 06:54:48 CST
+// Lun 02 jun 2025 18:55:49 CST
+//
 // We register into this web-component the endpoints we are going to open on the page
 // <post-listener endpoints='["/api/teams/accept", "/api/teams/control", "endpoint3...",]'></post-listener>
 // so this webcomponent will search for buttons containing attribute 'endpoint'
@@ -15,12 +17,14 @@
 // ids
 // href: string
 // delay?: number
-// closest?: string 
+// closest?: string
+// interactWithParams?: boolean envia la info del url
 // --------USAGE-----------
-// <button 
-// class="cta" 
-// success=" Información Validada ✅" 
-// ids='["password", "username"]' 
+// <button
+// class="cta"
+// interactWithParams="true" 
+// success=" Información Validada ✅"
+// ids='["password", "username"]'
 // endpoint="/login"
 // closest="form|tr|section|..."
 //   href="/vision-general/" error="No se pudo iniciar session ❌">
@@ -29,37 +33,32 @@
 
 window.addEventListener('post-request', async (e) => {
   const { endpoint, payload, button } = e.detail;
+
   if (!endpoint || !button || button.requestInProgress) return;
   button.requestInProgress = true;
 
-  const successText = button.getAttribute('success') || '✅ OK';
-  const errorText = button.getAttribute('error') || '❌ Error';
-  const href = button.getAttribute('href');
-  const originalText = button.textContent.trim();
-
-  button.disabled = true;
   try {
-    const res = await fetch(endpoint, {
+    const response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(payload),
     });
 
-    if (res.ok) {
-      button.textContent = successText;
-      if (href) window.location.href = href;
-    } else {
-      button.textContent = errorText;
+    const json = await response.json();
+    const eventName = button.getAttribute('event');
+    if (eventName) {
+      const customEvent = new CustomEvent(eventName, {
+        detail: json,
+        bubbles: true,
+      });
+      button.dispatchEvent(customEvent);
     }
   } catch (err) {
-    console.error('[post-request] Fetch failed:', err);
-    button.textContent = errorText;
+    console.error('Request failed', err);
   } finally {
-    setTimeout(() => {
-      button.textContent = originalText;
-      button.disabled = false;
-      button.requestInProgress = false;
-    }, 1500);
+    button.requestInProgress = false;
   }
 });
 
@@ -99,6 +98,7 @@ class PostListener extends HTMLElement {
           names: JSON.parse(button.getAttribute('names') || '[]'),
           href: button.getAttribute('href'),
           closestSelector: button.getAttribute('closest') || null,
+          interactWithParams: button.getAttribute('interactWithParams') === 'true',
           originalText: button.textContent.trim(),
         };
 
@@ -116,6 +116,20 @@ class PostListener extends HTMLElement {
         );
       }
     });
+  }
+
+  disableButton(button) {
+    button.disabled = true;
+  }
+
+  removeAttributes(button) {
+    button.removeAttribute('endpoint');
+    button.removeAttribute('ids');
+    button.removeAttribute('href');
+    button.removeAttribute('success');
+    button.removeAttribute('error');
+    button.removeAttribute('closest');
+    button.removeAttribute('interactWithParams');
   }
 
   async handleButtonClick(button, endpoint, storedAttributes) {
@@ -140,6 +154,25 @@ class PostListener extends HTMLElement {
         formData[input.id] = input.value;
       }
     });
+
+    // Include URL params if interactWithParams is true
+    if (storedAttributes.interactWithParams) {
+      const urlParams = new URLSearchParams(window.location.search);
+      for (const [key, value] of urlParams.entries()) {
+        formData[key] = value;
+      }
+    }
+
+    const event = new CustomEvent('post-request', {
+      detail: {
+        endpoint,
+        payload: formData,
+        button,
+      },
+      bubbles: true,
+    });
+
+    button.dispatchEvent(event);
 
     if (
       scopeElement &&
@@ -191,19 +224,6 @@ class PostListener extends HTMLElement {
       };
       useDelay ? setTimeout(restore, delay) : restore();
     }
-  }
-
-  disableButton(button) {
-    button.disabled = true;
-  }
-
-  removeAttributes(button) {
-    button.removeAttribute('endpoint');
-    button.removeAttribute('ids');
-    button.removeAttribute('href');
-    button.removeAttribute('success');
-    button.removeAttribute('error');
-    button.removeAttribute('closest');
   }
 }
 
