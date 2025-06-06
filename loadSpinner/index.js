@@ -7,118 +7,69 @@
 class LoadingComponent extends HTMLElement {
   constructor() {
     super();
-    // Create Shadow DOM
-    const shadow = this.attachShadow({ mode: 'open' });
+    this.attachShadow({ mode: 'open' });
 
-    // Create overlay and spinner elements
-    this.overlay = document.createElement('div');
-    this.overlay.classList.add('overlay');
+    const wrapper = document.createElement('div');
+    wrapper.classList.add('wrapper');
 
-    this.spinner = document.createElement('div'); // Save reference to spinner for future updates
-    this.spinner.classList.add('spinner');
-    this.spinner.id = 'spinner';
+    const overlay = document.createElement('div');
+    overlay.classList.add('overlay');
+    overlay.setAttribute('part', 'overlay');
 
-    this.overlay.appendChild(this.spinner);
+    const spinner = document.createElement('div');
+    spinner.classList.add('spinner');
+    spinner.setAttribute('part', 'spinner');
 
-    // Create a content slot for displaying data after loading
-    const content = document.createElement('div');
-    content.id = 'content';
-    content.style.display = 'none'; // Initially hidden
+    overlay.appendChild(spinner);
+
     const slot = document.createElement('slot');
-    content.appendChild(slot);
 
-    // Append elements to the shadow DOM
-    shadow.appendChild(this.overlay);
-    shadow.appendChild(content);
+    wrapper.appendChild(overlay);
+    wrapper.appendChild(slot);
 
-    // Attach styles using CSSStyleSheet
-    const stylesheet = new CSSStyleSheet();
-    stylesheet.replaceSync(`
+    const style = document.createElement('style');
+    style.textContent = `
+      .wrapper {
+        position: relative;
+        display: block;
+      }
+
       .overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(255, 255, 255, 0.9);
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        background: rgba(255, 255, 255, 0.9);
         display: flex;
-        align-items: center;
         justify-content: center;
-        z-index: 9999;
+        align-items: center;
       }
 
       .spinner {
-        width: 50px;
-        height: 50px;
-        border: 5px solid rgba(0, 0, 0, 0.1);
-        border-left-color: #000;
+        width: 40px;
+        height: 40px;
+        border: 5px solid rgba(0, 0, 0, 0.2);
+        border-top-color: black;
         border-radius: 50%;
-        animation: spin 1s linear infinite;
+        animation: spin 0.6s linear infinite;
       }
 
       @keyframes spin {
-        from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
       }
-    `);
-    shadow.adoptedStyleSheets = [stylesheet];
-  }
+    `;
 
-  static get observedAttributes() {
-    return ['loadingtime', 'class', 'icon'];
+    this.shadowRoot.append(style, wrapper);
+
+    this.wrapper = wrapper;
+    this.overlay = overlay;
   }
 
   connectedCallback() {
-    this.initLoading();
-  }
-
-  attributeChangedCallback(name, oldValue, newValue) {
-    if (name === 'class' && newValue) {
-      this.applyExternalClass(newValue);
-    }
-
-    if (name === 'icon') {
-      this.updateIcon(newValue);
-    }
-  }
-
-  applyExternalClass(className) {
-    // Apply external class to the internal overlay element
-    this.overlay.classList.add(className);
-  }
-
-  updateIcon(icon) {
-    // Clear previous content
-    this.spinner.innerHTML = '';
-    
-    // Only add the image if the icon attribute is provided
-    if (icon) {
-      const img = document.createElement('img');
-      img.src = icon;
-      img.alt = 'Loading icon';
-      this.spinner.appendChild(img);
-    }
-  }
-
-  async initLoading() {
-    const loadingTime = parseInt(this.getAttribute('loadingtime') || '1700'); // Default to 1.7 seconds
-    const spinnerTimeout = new Promise((resolve) => setTimeout(resolve, loadingTime));
-
-    const data = await this.fetchData(); // Simulated fetch (replace with actual)
-
-    await spinnerTimeout; // Ensure minimum loading time is met
-
-    if (data) {
-      this.shadowRoot.getElementById('content').style.display = 'block';
-      this.shadowRoot.querySelector('.overlay').style.display = 'none';
-    }
-  }
-
-  async fetchData() {
-    // Simulate a backend call with a delay (replace with actual fetch)
-    return new Promise((resolve) => setTimeout(() => resolve(true), 500)); // Simulate fast fetch
+    const delay = parseInt(this.getAttribute('loadingtime') || '1700', 10);
+    setTimeout(() => {
+      this.overlay.style.display = 'none';
+    }, delay);
   }
 }
 
-// Define the custom element
 customElements.define('loading-component', LoadingComponent);
