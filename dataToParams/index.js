@@ -1,6 +1,6 @@
 /*
     Dom 01 jun 2025 20:27:36 CST
-    Lun 02 jun 2025 18:52:34 CST
+    lun 02 jun 2025 18:52:34 CST
  *
                 <data-to-params listenTo="data-to-params" closest="tr" infoToParam='["id", "nombre"]'>
                 </data-to-params>
@@ -21,7 +21,6 @@ class DataToParams extends HTMLElement {
   attachTemplate() {
     const template = document.createElement('template');
     template.innerHTML = `<slot></slot>`;
-
     const shadow = this.attachShadow({ mode: 'open' });
     shadow.appendChild(template.content.cloneNode(true));
   }
@@ -30,39 +29,40 @@ class DataToParams extends HTMLElement {
     const slot = this.shadowRoot.querySelector('slot');
 
     if (!slot) {
-      console.error('[open-dialog] ❌ No <slot> found inside shadowRoot.');
+      console.error('[data-to-params] ❌ No <slot> found inside shadowRoot.');
       return;
     }
 
-    const nodes = slot.assignedElements();
+    const tryAttach = () => {
+      const nodes = slot.assignedElements();
+      if (!nodes.length) {
+        console.warn('[data-to-params] ⚠️ No elements assigned in slot.');
+        return;
+      }
 
-    if (!nodes.length) {
-      console.warn('[open-dialog] ⚠️ No elements assigned yet. Listening for slotchange...');
-      // Attach listener in case they come later
-      slot.addEventListener('slotchange', () => {
-        this.attachClickHandler(slot);
-      });
-      return;
+      this.attachClickHandler(nodes[0]);
+    };
+
+    // Handle lazy slotted content
+    if (slot.assignedElements().length) {
+      tryAttach();
+    } else {
+      slot.addEventListener('slotchange', tryAttach);
     }
-
-    this.attachClickHandler(slot);
   }
 
-  attachClickHandler(slot) {
-    const nodes = slot.assignedElements();
-
-    if (!nodes.length) {
-      console.error(
-        '[open-dialog] ❌ No slotted elements found when trying to attach click handler.'
-      );
-      return;
-    }
-
-    const clickable = nodes[0];
-
+  attachClickHandler(clickable) {
     clickable.style.cursor = 'pointer';
 
     clickable.addEventListener('click', () => {
+      // Dispatch custom event so parent can listen
+      this.dispatchEvent(
+        new CustomEvent('button-clicked', {
+          bubbles: true,
+          composed: true, // allows it to escape shadow root
+        })
+      );
+
       this.sendDataToParams();
     });
   }
@@ -89,9 +89,9 @@ class DataToParams extends HTMLElement {
 
       for (const param of infoToParam) {
         if (typeof param === 'string' && param.trim() !== '') {
-          const temp = closestElement.querySelector(`#${param}`);
-          if (temp) {
-            const val = temp.value ?? temp.textContent.trim();
+          const el = closestElement.querySelector(`#${param}`);
+          if (el) {
+            const val = el.value ?? el.textContent.trim();
             params.set(param, val);
           } else {
             console.warn(`[data-to-params] ⚠️ No element found with ID #${param}`);
