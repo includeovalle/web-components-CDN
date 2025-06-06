@@ -1,8 +1,12 @@
 // usage:
+// component must be son of a relative element and this will cover/wrap that element
 // <loading-component loadingtime="1700" class='["custom-overlay", "custom-spinner"]'>
 //   <h1>Data Loaded!</h1>
 //   <p>This content will be shown after the loading spinner disappears.</p>
 // </loading-component>
+//
+// This exposes css with ::part(overlay)
+// This exposes css with ::part(spinner)
 
 class LoadingComponent extends HTMLElement {
   constructor() {
