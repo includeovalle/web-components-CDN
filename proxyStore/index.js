@@ -1,5 +1,6 @@
 /*
     Lun 26 may 2025 23:10:34 CST
+    Vie 06 jun 2025 18:38:26 CST
   * @params:
   *   endpoints:  Representa un arreglo con los endpoints que va a traer el componente
   *   objectName: Representa el nombre del proxy donde se almacenara la informacion obtenida
@@ -87,7 +88,6 @@ class ProxyStore extends HTMLElement {
       },
     });
 
-    window[this.objectName] = this.proxy;
     this.isProxyInitialized = true;
 
     if (endpoints) {
@@ -125,7 +125,6 @@ class ProxyStore extends HTMLElement {
       },
     });
     this.isProxyInitialized = true;
-    window[newObjectName] = this.proxy;
   }
 
   fetchAndStoreEndpoints(endpointArray) {
