@@ -248,7 +248,20 @@ class AsyncTable extends HTMLElement {
       Object.keys(row).forEach((header) => {
         const td = document.createElement('td');
         td.id = header;
-        td.textContent = row[header];
+
+        const value = row[header];
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          // Render object as "key: value" pairs
+          td.textContent = Object.entries(value)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(', ');
+        } else if (Array.isArray(value)) {
+          // Keep array handling too, in case rows still come as arrays
+          td.textContent = value.join(', ');
+        } else {
+          td.textContent = value;
+        }
+
         if (this.hiddenColumns.includes(header)) {
           td.hidden = true;
         }
