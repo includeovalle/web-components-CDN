@@ -163,7 +163,7 @@ class AsyncIf extends HTMLElement {
         }
       }
 
-      const value = this.getDeepValue(data, checkValueRaw, attrPath);
+      const value = this.getDeepValue(data, attrPath);
       let valid;
 
       if (checkValueRaw != null) {
@@ -199,12 +199,8 @@ class AsyncIf extends HTMLElement {
     }
   }
 
-  getDeepValue(obj, firstKey, path) {
-    if (!obj || !path) return undefined;
-    // Navigate the "path"
-    const base = path.split('.').reduce((acc, key) => acc?.[key], obj);
-    // Once we’re there, pull out the firstKey
-    return base[firstKey] ?? base;
+  getDeepValue(obj, path) {
+    return path.split('.').reduce((acc, key) => acc?.[key], obj);
   }
 }
 
